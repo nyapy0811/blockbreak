@@ -1,0 +1,225 @@
+body {
+  margin: 0;
+  padding: 20px;
+  background: #f0f0f0;
+  font-family: sans-serif;
+  display: flex;
+  justify-content: center;
+}
+
+.game-container {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.canvas-wrap {
+  position: relative;
+  width: 800px;
+  height: 500px;
+}
+
+#gameCanvas {
+  display: block;
+  background: #ffffff;
+  border: 1px solid #333;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.overlay.hidden {
+  display: none;
+}
+
+#confirmBtn {
+  padding: 12px 36px;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.shop-modal {
+  background: #fff;
+  padding: 20px 24px;
+  border-radius: 8px;
+  min-width: 360px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.shop-modal h2 {
+  margin: 0 0 8px;
+  font-size: 18px;
+  text-align: center;
+}
+
+.shop-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+}
+
+.buy-btn {
+  min-width: 90px;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+.buy-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+#nextStageBtn {
+  margin-top: 10px;
+  padding: 10px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.win-modal {
+  background: #fff;
+  padding: 32px 40px;
+  border-radius: 8px;
+  text-align: center;
+  min-width: 280px;
+}
+
+.win-modal h2 {
+  margin: 0 0 16px;
+  font-size: 40px;
+  color: #f1a200;
+}
+
+.win-modal p {
+  margin: 0 0 20px;
+  font-size: 18px;
+}
+
+#restartBtn,
+#gameoverRestartBtn {
+  padding: 10px 28px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.gameover-modal {
+  background: #fff;
+  padding: 32px 40px;
+  border-radius: 8px;
+  text-align: center;
+  min-width: 280px;
+}
+
+.gameover-modal h2 {
+  margin: 0 0 20px;
+  font-size: 36px;
+  color: #c00;
+}
+
+.legend {
+  margin-top: 12px;
+  background: #fff;
+  border: 1px solid #ccc;
+  padding: 12px 16px;
+  font-size: 13px;
+  width: 800px;
+  box-sizing: border-box;
+}
+
+.legend h3 {
+  margin: 0 0 8px;
+  font-size: 14px;
+}
+
+.legend-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0;
+}
+
+.legend-color {
+  width: 16px;
+  height: 16px;
+  border: 1px solid #000;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.controls {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+#startBtn {
+  padding: 6px 16px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+#stage,
+#score {
+  font-size: 16px;
+  font-weight: bold;
+}
+
+#message {
+  font-size: 16px;
+  font-weight: bold;
+  color: #c00;
+}
+
+.test-controls {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #888;
+}
+
+.test-controls button {
+  font-size: 12px;
+  padding: 3px 8px;
+  cursor: pointer;
+}
+
+.shop-panel {
+  width: 200px;
+  background: #fff;
+  border: 1px solid #ccc;
+  padding: 12px 16px;
+  font-size: 14px;
+}
+
+.shop-panel h3 {
+  margin: 0 0 12px;
+  font-size: 16px;
+}
+
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+}
+
+.shop-panel hr {
+  margin: 12px 0;
+  border: 0;
+  border-top: 1px solid #ddd;
+}
