@@ -72,10 +72,11 @@ const stats = {
 };
 
 // 황금 특성 관련
-const GOLD_CHANCE_INCREMENT = 0.05;
-const GOLD_CHANCE_MAX = 0.5;
+const GOLD_CHANCE_INCREMENT = 0.10;
+const GOLD_CHANCE_MAX = 1.0;
 const GOLD_TRAIT_REWARD = 3;
 const GOLD_TRAIT_BORDER = '#ffd700';
+const NORMAL_BRICK_COLOR = '#e63946';
 
 let currentStage = 1;
 const MAX_STAGE = 5;
@@ -100,8 +101,6 @@ const brick = {
   offsetLeft: 160
 };
 
-const rowColors = ['#e63946', '#f4a261', '#2a9d8f', '#264653', '#e76f51'];
-
 const BRICK_TYPE = {
   NORMAL: 'normal',
   ARMOR: 'armor',
@@ -118,6 +117,28 @@ const SPECIAL_COLORS = {
 
 function createBall(x, y, dx, dy) {
   return { x, y, r: stats.ballRadius, dx, dy, color: '#222' };
+}
+
+function shuffleInPlace(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+}
+
+function applyBrickType(b, type, baseHp) {
+  b.type = type;
+  b.color = SPECIAL_COLORS[type];
+  if (type === BRICK_TYPE.ARMOR) {
+    b.hp = 5;
+    b.maxHp = 5;
+  } else if (type === BRICK_TYPE.HARDENED) {
+    b.hp = baseHp * 2;
+    b.maxHp = baseHp * 2;
+  } else if (type === BRICK_TYPE.INDESTRUCTIBLE) {
+    b.hp = Infinity;
+    b.maxHp = Infinity;
+  }
 }
 
 function initBricks() {
@@ -143,6 +164,7 @@ function initBricks() {
 
   const baseHp = getBlockHp();
 
+  // 1) 모든 슬롯을 일반(통일 색)으로 생성
   for (let r = 0; r < brick.rows; r++) {
     for (let c = 0; c < brick.cols; c++) {
       bricks.push({
@@ -153,41 +175,59 @@ function initBricks() {
         hp: baseHp,
         maxHp: baseHp,
         alive: true,
-        color: rowColors[r % rowColors.length],
+        color: NORMAL_BRICK_COLOR,
         type: BRICK_TYPE.NORMAL
       });
     }
   }
 
+  // 2) 특수 타입 결정 (균등 무작위, 3종)
   const specialCount = 8 * (currentStage - 1);
-  const specialTypes = [
-    BRICK_TYPE.ARMOR,
-    BRICK_TYPE.INDESTRUCTIBLE,
-    BRICK_TYPE.HARDENED
-  ];
-
-  const indices = bricks.map((_, i) => i);
-  for (let i = indices.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [indices[i], indices[j]] = [indices[j], indices[i]];
+  const allTypes = [BRICK_TYPE.ARMOR, BRICK_TYPE.INDESTRUCTIBLE, BRICK_TYPE.HARDENED];
+  const typeRolls = [];
+  for (let i = 0; i < specialCount; i++) {
+    typeRolls.push(allTypes[Math.floor(Math.random() * 3)]);
   }
 
-  for (let i = 0; i < specialCount && i < indices.length; i++) {
-    const type = specialTypes[Math.floor(Math.random() * specialTypes.length)];
-    const b = bricks[indices[i]];
-    b.type = type;
-    b.color = SPECIAL_COLORS[type];
-    if (type === BRICK_TYPE.ARMOR) {
-      // 갑옷: HP 5 고정 (1 데미지씩만 들어가므로 5번 맞으면 깨짐)
-      b.hp = 5;
-      b.maxHp = 5;
-    } else if (type === BRICK_TYPE.HARDENED) {
-      b.hp = baseHp * 2;
-      b.maxHp = baseHp * 2;
-    } else if (type === BRICK_TYPE.INDESTRUCTIBLE) {
-      b.hp = Infinity;
-      b.maxHp = Infinity;
+  // 3) 파괴 불가는 맨 아래 행(brick.cols개)만 가능 — 넘치면 다른 특수로 재할당
+  const bottomCapacity = brick.cols;
+  let indestructibleCount = typeRolls.filter(t => t === BRICK_TYPE.INDESTRUCTIBLE).length;
+  const otherTypes = typeRolls.filter(t => t !== BRICK_TYPE.INDESTRUCTIBLE);
+  if (indestructibleCount > bottomCapacity) {
+    const overflow = indestructibleCount - bottomCapacity;
+    indestructibleCount = bottomCapacity;
+    const altTypes = [BRICK_TYPE.ARMOR, BRICK_TYPE.HARDENED];
+    for (let i = 0; i < overflow; i++) {
+      otherTypes.push(altTypes[Math.floor(Math.random() * 2)]);
     }
+  }
+
+  // 4) 인덱스 풀: 맨 아래 행 / 그 외
+  const bottomIndices = [];
+  const otherIndices = [];
+  for (let r = 0; r < brick.rows; r++) {
+    for (let c = 0; c < brick.cols; c++) {
+      const idx = r * brick.cols + c;
+      if (r === brick.rows - 1) bottomIndices.push(idx);
+      else otherIndices.push(idx);
+    }
+  }
+  shuffleInPlace(bottomIndices);
+  shuffleInPlace(otherIndices);
+
+  // 5) 파괴 불가 배치
+  for (let i = 0; i < indestructibleCount; i++) {
+    applyBrickType(bricks[bottomIndices[i]], BRICK_TYPE.INDESTRUCTIBLE, baseHp);
+  }
+
+  // 6) 나머지 특수 배치 (맨 아래 미사용 슬롯 포함)
+  const remaining = otherIndices.slice();
+  for (let i = indestructibleCount; i < bottomIndices.length; i++) {
+    remaining.push(bottomIndices[i]);
+  }
+  shuffleInPlace(remaining);
+  for (let i = 0; i < otherTypes.length && i < remaining.length; i++) {
+    applyBrickType(bricks[remaining[i]], otherTypes[i], baseHp);
   }
 
   // 황금 특성 부여 (파괴 불가 / 보스 제외, 블록별 독립 확률)
@@ -209,7 +249,6 @@ function resetGame() {
   const dy = -Math.cos(angle) * speed;
   const r = stats.ballRadius;
   balls = [createBall(paddle.x + paddle.w / 2, paddle.y - r, dx, dy)];
-  score = 0;
   bossStartTime = null;
   initBricks();
   messageEl.textContent = '';
@@ -270,9 +309,15 @@ function drawBricks() {
     if (!b.alive) continue;
     ctx.fillStyle = b.color;
     ctx.fillRect(b.x, b.y, b.w, b.h);
-    ctx.strokeStyle = b.trait === 'gold' ? GOLD_TRAIT_BORDER : '#000';
+    // 기본 외곽 테두리 (검정 1px)
+    ctx.strokeStyle = '#000';
     ctx.lineWidth = 1;
     ctx.strokeRect(b.x, b.y, b.w, b.h);
+    // 황금 특성: 기본 테두리 안쪽에 1px 추가
+    if (b.trait === 'gold') {
+      ctx.strokeStyle = GOLD_TRAIT_BORDER;
+      ctx.strokeRect(b.x + 1, b.y + 1, b.w - 2, b.h - 2);
+    }
     const cx = b.x + b.w / 2;
     const cy = b.y + b.h / 2;
     const text = b.type === BRICK_TYPE.INDESTRUCTIBLE ? '∞' : String(b.hp);
@@ -304,15 +349,15 @@ function collideBricks(ball) {
         let dmg = b.type === BRICK_TYPE.ARMOR ? 1 : stats.ballDamage;
         dmg = Math.min(dmg, b.hp);
         b.hp -= dmg;
-        score += dmg;
         if (b.hp <= 0) {
           b.alive = false;
+          score += currentStage;
           if (b.type !== BRICK_TYPE.BOSS) {
             gold += b.trait === 'gold' ? GOLD_TRAIT_REWARD : 1;
             updateStatsDisplay();
           }
+          updateScoreDisplay();
         }
-        updateScoreDisplay();
       }
 
       if (minOverlap === overlapLeft) {
@@ -433,6 +478,7 @@ function loop() {
 
 function fullReset() {
   currentStage = 1;
+  score = 0;
   gold = 0;
   hasShield = false;
   stats.ballDamage = 1;
@@ -482,8 +528,8 @@ function startGame() {
 }
 
 function priceFor(kind) {
-  if (kind === 'shield') return 50;
-  return 10 + 30 * shopState[kind + 'Buys'];
+  if (kind === 'shield') return 20;
+  return 5 + 5 * shopState[kind + 'Buys'];
 }
 
 function updateShopUI() {
@@ -586,8 +632,8 @@ testWinBtn.addEventListener('click', () => {
   for (const b of bricks) {
     if (!b.alive) continue;
     if (b.type === BRICK_TYPE.INDESTRUCTIBLE) continue;
-    score += b.hp;
     b.alive = false;
+    score += currentStage;
     if (b.type !== BRICK_TYPE.BOSS) {
       gold += b.trait === 'gold' ? GOLD_TRAIT_REWARD : 1;
     }
