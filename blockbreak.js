@@ -35,9 +35,16 @@ const restartBtn = document.getElementById('restartBtn');
 const gameoverOverlay = document.getElementById('gameoverOverlay');
 const gameoverRestartBtn = document.getElementById('gameoverRestartBtn');
 
-// 캔버스 크기
-const W = canvas.width;
-const H = canvas.height;
+// 논리 캔버스 크기 (좌표계 기준)
+const W = 800;
+const H = 500;
+// HiDPI 백버퍼 보정
+const dpr = window.devicePixelRatio || 1;
+canvas.width = W * dpr;
+canvas.height = H * dpr;
+canvas.style.width = W + 'px';
+canvas.style.height = H + 'px';
+ctx.scale(dpr, dpr);
 
 // 게임 상태
 let balls = [];
