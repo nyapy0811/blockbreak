@@ -165,12 +165,13 @@ ready --(시작 버튼)--> playing  (반복)
 - `getBlockHp()` → `2^currentStage - 1` (스테이지 1~4용)
 - `initBricks()` — 스테이지 5면 보스 단일 객체만 생성. 그 외 흐름: (1) 32칸 일반 블록 통일 색상으로 생성 → (2) 특수 타입 균등 무작위 굴림 → (3) 파괴 불가 cap (맨 아래 행 8칸, 초과분은 갑옷/강화로 재할당) → (4) 인덱스 풀(맨 아래 / 그 외) 셔플 → (5) 파괴 불가 배치 → (6) 나머지 특수 배치 (맨 아래 미사용 슬롯 포함) → (7) 황금 특성 굴림
 - `createBall(x, y, dx, dy)`
-- `collideBricks(ball)` — 4면 겹침 깊이 기반 충돌 판정, 타입별 처리(갑옷=dmg 1, 파괴불가=튕김만, 강화/보스=일반 데미지). **블록 파괴 순간 `score += currentStage`** 가산 + 보스가 아니면 `gold += (b.trait==='gold' ? 3 : 1)` + 패널 갱신. 충돌 후 블록 밖으로 위치 보정. `b.w/b.h` 사용.
+- `collideBricks(ball)` — 4면 겹침 깊이 기반 충돌 판정, 타입별 처리(갑옷=dmg 1, 파괴불가=튕김만, 강화/보스=일반 데미지). **블록 파괴 순간 `score += currentStage`** 가산 + 보스가 아니면 `gold += (b.trait==='gold' ? 3 : 1)` + 패널 갱신. 충돌 후 블록 밖으로 위치 보정. `b.w/b.h` 사용. **보스-벽 끼임 방지**: 각 방향 분기에서 보정 좌표가 벽 밖이 될 경우 반대쪽으로 밀어내도록 분기 추가.
 - `shuffleInPlace(arr)` — Fisher-Yates 셔플 헬퍼
 - `applyBrickType(b, type, baseHp)` — 특수 타입 적용 헬퍼(색상/HP 설정)
 - `allBricksCleared()` — 파괴 불가 제외 판정 (보스 alive=false면 true)
-- `updateBall(ball)` — 위치/벽/패드/블록 충돌
+- `updateBall(ball)` — 위치/벽/패드/블록 충돌. **벽 충돌 시 위치 클램프** (`ball.x = ball.r` / `W - ball.r` / `ball.y = ball.r`) + `Math.abs`로 방향 명시 설정 → 끼임/오실레이션 방지
 - `updateBoss()` — 보스 좌우/상하 이동, 4벽(상/좌/우 + H/2 가로선) 반사
+- `drawBricks()` — 블록 채움 → **검정 2px 외곽 테두리** → 황금 트레이트면 **안쪽에 금색 2px 추가** → HP 텍스트 (외곽 stroke 1.5px + 흰색 fill). 텍스트 선명도 보강: `ctx.lineJoin = 'round'`, `ctx.textRendering = 'geometricPrecision'`. 보스는 32px 폰트, 일반은 16px
 - `gameOver(won)`:
   - 일반 클리어(스테이지 1~4): `currentStage++` + `gameState='cleared'` + 확인 오버레이 (골드는 collideBricks에서 이미 누적됨)
   - 보스 클리어(스테이지 5): 시간 기반 finalScore 계산 + `gameState='won'` + Winner 오버레이 (골드/스테이지 변경 X)
@@ -178,7 +179,7 @@ ready --(시작 버튼)--> playing  (반복)
 - `fullReset()` — 스탯/골드/보호막/상점 카운트/bossStartTime 전부 초기값으로 (currentStage=1)
 - `resetGame()` — 현재 `currentStage` 기준 스테이지 셋업, 공 시작 위치/각도 무작위, `gameState='ready'`
 - `startGame()` — `gameState`가 'ready'일 때만 게임 루프 시작. 스테이지 5면 `bossStartTime = performance.now()` 기록
-- `priceFor(kind)` — 'damage'/'radius'/'paddle': `10 + 30*구매횟수`, 'shield': 50
+- `priceFor(kind)` — 'damage'/'radius'/'paddle'/'goldchance': `5 + 5*구매횟수`, 'shield': 20
 - `buy(kind)` — 골드 차감 + 스탯 증가 + 가격 카운트 증가
 - `openShop()`, `closeShopToNextStage()` — 오버레이 표시/숨김
 - `updateShopUI()` — 가격 표시 + 골드 부족 시 버튼 비활성
