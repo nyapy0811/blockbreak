@@ -309,6 +309,14 @@ function drawPaddle() {
   ctx.fillRect(paddle.x, paddle.y, paddle.w, paddle.h);
 }
 
+function drawBorder(x, y, w, h, color) {
+  ctx.fillStyle = color;
+  ctx.fillRect(x, y, w, 2);           // top
+  ctx.fillRect(x, y + h - 2, w, 2);   // bottom
+  ctx.fillRect(x, y, 2, h);           // left
+  ctx.fillRect(x + w - 2, y, 2, h);   // right
+}
+
 function drawBricks() {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -316,21 +324,23 @@ function drawBricks() {
     if (!b.alive) continue;
     ctx.fillStyle = b.color;
     ctx.fillRect(b.x, b.y, b.w, b.h);
-    // 기본 외곽 테두리 (검정 1px)
+    // 기본 외곽 테두리 (검정 2px)
     ctx.strokeStyle = '#000';
-    ctx.lineWidth = 1;
+    ctx.lineWidth = 2;
     ctx.strokeRect(b.x, b.y, b.w, b.h);
-    // 황금 특성: 기본 테두리 안쪽에 1px 추가
+    // 황금 특성: 검정 2px 안쪽에 2px 추가
     if (b.trait === 'gold') {
       ctx.strokeStyle = GOLD_TRAIT_BORDER;
-      ctx.strokeRect(b.x + 1, b.y + 1, b.w - 2, b.h - 2);
+      ctx.strokeRect(b.x + 2, b.y + 2, b.w - 4, b.h - 4);
     }
     const cx = b.x + b.w / 2;
     const cy = b.y + b.h / 2;
     const text = b.type === BRICK_TYPE.INDESTRUCTIBLE ? '∞' : String(b.hp);
     ctx.font = b.type === BRICK_TYPE.BOSS ? 'bold 32px sans-serif' : 'bold 16px sans-serif';
     ctx.strokeStyle = 'rgba(0,0,0,0.7)';
-    ctx.lineWidth = 3;
+    ctx.lineWidth = 1.5;
+    ctx.lineJoin = 'round';
+    ctx.textRendering = 'geometricPrecision';
     ctx.strokeText(text, cx, cy);
     ctx.fillStyle = '#fff';
     ctx.fillText(text, cx, cy);
@@ -368,17 +378,21 @@ function collideBricks(ball) {
       }
 
       if (minOverlap === overlapLeft) {
-        ball.x = b.x - ball.r;
-        ball.dx = -Math.abs(ball.dx);
+        const tx = b.x - ball.r;
+        if (tx < ball.r) { ball.x = b.x + b.w + ball.r; ball.dx =  Math.abs(ball.dx); }
+        else             { ball.x = tx;                  ball.dx = -Math.abs(ball.dx); }
       } else if (minOverlap === overlapRight) {
-        ball.x = b.x + b.w + ball.r;
-        ball.dx = Math.abs(ball.dx);
+        const tx = b.x + b.w + ball.r;
+        if (tx > W - ball.r) { ball.x = b.x - ball.r; ball.dx = -Math.abs(ball.dx); }
+        else                 { ball.x = tx;            ball.dx =  Math.abs(ball.dx); }
       } else if (minOverlap === overlapTop) {
-        ball.y = b.y - ball.r;
-        ball.dy = -Math.abs(ball.dy);
+        const ty = b.y - ball.r;
+        if (ty < ball.r) { ball.y = b.y + b.h + ball.r; ball.dy =  Math.abs(ball.dy); }
+        else             { ball.y = ty;                   ball.dy = -Math.abs(ball.dy); }
       } else {
-        ball.y = b.y + b.h + ball.r;
-        ball.dy = Math.abs(ball.dy);
+        const ty = b.y + b.h + ball.r;
+        if (ty > H - ball.r) { ball.y = b.y - ball.r; ball.dy = -Math.abs(ball.dy); }
+        else                 { ball.y = ty;            ball.dy =  Math.abs(ball.dy); }
       }
 
       return;
@@ -394,12 +408,9 @@ function updateBall(ball) {
   ball.x += ball.dx;
   ball.y += ball.dy;
 
-  if (ball.x - ball.r < 0 || ball.x + ball.r > W) {
-    ball.dx = -ball.dx;
-  }
-  if (ball.y - ball.r < 0) {
-    ball.dy = -ball.dy;
-  }
+  if (ball.x - ball.r < 0) { ball.x = ball.r;     ball.dx =  Math.abs(ball.dx); }
+  if (ball.x + ball.r > W) { ball.x = W - ball.r; ball.dx = -Math.abs(ball.dx); }
+  if (ball.y - ball.r < 0) { ball.y = ball.r;     ball.dy =  Math.abs(ball.dy); }
   if (
     ball.y + ball.r >= paddle.y &&
     ball.y + ball.r <= paddle.y + paddle.h &&
