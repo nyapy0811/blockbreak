@@ -47,20 +47,25 @@
 - 속도(magnitude)는 보존
 
 ### 3.5 골드 / 포인트
-- 1 데미지 = 1 포인트 = 1 골드
-- 스테이지 클리어 시 누적 점수가 골드로 합산됨
+- **블록 1개 파괴당 골드 +1** (즉시 누적, 보스/파괴불가 제외)
+- **황금 특성 블록 파괴 시 +3** (특성은 § 3.10 참고)
+- 점수(score)는 누적 데미지 표시용으로만 유지 (스테이지 종료 시 골드 변환 없음)
+- 스테이지 종료 메시지: `"스테이지 N 클리어!"` (골드 +N 표기 제거)
 
 ### 3.6 상점 (Phase 4 완료)
 - 영구 적용, 누적 구매 가능, 구매마다 가격 상승 (보호막 제외)
+- 항목 순서: 공 데미지 / 공 크기 / 패드 크기 / **황금 확률** / 보호막
 - **가격 공식** (확정):
   - 공 데미지: 10 + 30×구매횟수 (10 → 40 → 70 → ...)
   - 공 크기: 10 + 30×구매횟수
   - 패드 크기: 10 + 30×구매횟수
+  - 황금 확률: 10 + 30×구매횟수 (상한 50%에서 가격 표시 "최대"로 표기)
   - 보호막: **50 고정**, 보유 중이면 비활성
-- **업그레이드 증가량** (현재 가정값, 사용자 확정 X — 조정 가능):
+- **업그레이드 증가량**:
   - 공 데미지: +1 / 구매
   - 공 크기 (반지름): +2 / 구매
   - 패드 가로: +20 / 구매
+  - 황금 확률: +5% / 구매 (상한 50%)
 
 ### 3.7 보호막 (Phase 5 완료)
 - **소모성 1회용**
@@ -88,7 +93,16 @@
 - 공 데미지 → 1
 - 공 크기 → 8
 - 패드 가로 → 100
-- **상점 구매 횟수 → 0** (Phase 4에서 추가됨, 가격이 다시 10G부터 시작)
+- **황금 확률 → 0%**
+- **상점 구매 횟수 → 0** (모든 항목, 가격이 다시 10G부터 시작)
+
+### 3.10 타일 특성 (Trait)
+- **개념**: 블록 type과 직교하는 추가 속성. 블록당 최대 1개 (현재는 황금 1종만 존재)
+- **부여 방식**: `initBricks` 마지막 단계에서 블록별 독립적으로 `Math.random() < stats.goldChance` 굴림
+- **적용 대상**: 일반 블록 + 갑옷 + 강화 (파괴 불가/보스 제외 — 보상 발동 불가)
+- **시각**: `trait === 'gold'` 인 블록은 검정 1px 테두리 대신 **금색 1px (`#ffd700`)**
+- **보상**: 황금 블록 파괴 시 골드 +3 (일반은 +1)
+- 상수: `GOLD_CHANCE_INCREMENT = 0.05`, `GOLD_CHANCE_MAX = 0.5`, `GOLD_TRAIT_REWARD = 3`, `GOLD_TRAIT_BORDER = '#ffd700'`
 
 ## 4. 구현 진행 상황
 
@@ -108,16 +122,16 @@
 
 ### 5.1 주요 전역 상태
 - `balls`: 활성 공 배열 (`{x, y, r, dx, dy, color}`)
-- `bricks`: 블록 배열 (`{x, y, w, h, hp, maxHp, alive, color, type, [dx, dy(보스만)]}`)
+- `bricks`: 블록 배열 (`{x, y, w, h, hp, maxHp, alive, color, type, trait, [dx, dy(보스만)]}`)
 - `score`: 현재 스테이지 누적 데미지(점수)
 - `gold`: 누적 골드 (게임 오버 시 0)
 - `hasShield`: 보호막 보유 여부
 - `currentStage`: 1~5
-- `stats`: `{ballDamage, ballRadius}` — 상점 업그레이드 대상
+- `stats`: `{ballDamage, ballRadius, goldChance}` — 상점 업그레이드 대상
 - `paddle`: `{x, y, w, h}` — `w`도 업그레이드 대상
 - `running`, `animationId`: 게임 루프 제어
 - `gameState`: `'ready' | 'playing' | 'cleared' | 'shop' | 'won'`
-- `shopState`: `{damageBuys, radiusBuys, paddleBuys}` — 가격 계산용 누적 카운트
+- `shopState`: `{damageBuys, radiusBuys, paddleBuys, goldchanceBuys}` — 가격 계산용 누적 카운트
 - **`bossStartTime`**: 보스 스테이지 시작 시각 (ms, performance.now()), 다른 스테이지에서는 null
 
 ### 5.1.1 보스 상수
@@ -150,12 +164,12 @@ ready --(시작 버튼)--> playing  (반복)
 - `getBlockHp()` → `2^currentStage - 1` (스테이지 1~4용)
 - `initBricks()` — 스테이지 5면 보스 단일 객체만 생성, 그 외는 일반 32개 + 특수 치환
 - `createBall(x, y, dx, dy)`
-- `collideBricks(ball)` — 4면 겹침 깊이 기반 충돌 판정, 타입별 처리(갑옷=dmg 1, 파괴불가=튕김만, 강화/보스=일반 데미지), 충돌 후 블록 밖으로 위치 보정. `b.w/b.h` 사용.
+- `collideBricks(ball)` — 4면 겹침 깊이 기반 충돌 판정, 타입별 처리(갑옷=dmg 1, 파괴불가=튕김만, 강화/보스=일반 데미지). **블록 파괴 순간 보스가 아니면 `gold += (b.trait==='gold' ? 3 : 1)` + 패널 갱신**. 충돌 후 블록 밖으로 위치 보정. `b.w/b.h` 사용.
 - `allBricksCleared()` — 파괴 불가 제외 판정 (보스 alive=false면 true)
 - `updateBall(ball)` — 위치/벽/패드/블록 충돌
 - `updateBoss()` — 보스 좌우/상하 이동, 4벽(상/좌/우 + H/2 가로선) 반사
 - `gameOver(won)`:
-  - 일반 클리어(스테이지 1~4): 골드 누적 + `currentStage++` + `gameState='cleared'` + 확인 오버레이
+  - 일반 클리어(스테이지 1~4): `currentStage++` + `gameState='cleared'` + 확인 오버레이 (골드는 collideBricks에서 이미 누적됨)
   - 보스 클리어(스테이지 5): 시간 기반 finalScore 계산 + `gameState='won'` + Winner 오버레이 (골드/스테이지 변경 X)
   - 패배: `fullReset()` + `resetGame()` + 메시지 (순서 중요)
 - `fullReset()` — 스탯/골드/보호막/상점 카운트/bossStartTime 전부 초기값으로 (currentStage=1)
@@ -171,7 +185,8 @@ ready --(시작 버튼)--> playing  (반복)
 - 컨트롤: `#startBtn`, `#testWinBtn`, `#stage`, `#score`, `#message`
 - 우측 스탯 패널: `#stat-damage`, `#stat-radius`, `#stat-paddle`, `#stat-shield`, `#stat-gold`
 - 확인 오버레이: `#confirmOverlay`, `#confirmBtn`
-- 상점 오버레이: `#shopOverlay`, `#shop-gold`, `#price-{damage,radius,paddle,shield}`, `#buy-{damage,radius,paddle,shield}`, `#nextStageBtn`
+- 상점 오버레이: `#shopOverlay`, `#shop-gold`, `#price-{damage,radius,paddle,goldchance,shield}`, `#buy-{damage,radius,paddle,goldchance,shield}`, `#nextStageBtn`
+- 우측 패널 황금 확률: `#stat-goldchance`
 - Winner 오버레이: `#winOverlay`, `#win-score`, `#restartBtn`
 - **Game Over 오버레이**: `#gameoverOverlay`, `#gameoverRestartBtn`
 - 특수 블록 범례: `.legend` (캔버스 아래)
@@ -183,7 +198,8 @@ ready --(시작 버튼)--> playing  (반복)
 
 ### 5.7 테스트 모드
 - "승리 처리" 버튼 (`#testWinBtn`) — 게임 진행 중 누르면 즉시 스테이지 클리어 처리 → 확인 오버레이 → 상점 흐름 검증용
-- 살아있는 비-파괴불가 블록들의 **남은 HP만큼 score에 가산** 후 `alive=false` 처리 → `gameOver(true)` 호출 (골드도 풀로 깬 것과 동일하게 누적됨)
+- 살아있는 비-파괴불가 블록들에 대해: 남은 HP만큼 score 가산 + `alive=false` + **보스가 아니면 `gold += (trait==='gold' ? 3 : 1)`** → `gameOver(true)` 호출
+- 골드는 실제 플레이와 동일하게 "깬 블록 수 + 황금 보너스"만큼 누적됨
 - 파괴 불가 블록은 건드리지 않음
 
 ## 6. 사용자 선호사항 (CLAUDE.md 기반)

@@ -24,7 +24,10 @@ const priceShieldEl = document.getElementById('price-shield');
 const buyDamageBtn = document.getElementById('buy-damage');
 const buyRadiusBtn = document.getElementById('buy-radius');
 const buyPaddleBtn = document.getElementById('buy-paddle');
+const buyGoldChanceBtn = document.getElementById('buy-goldchance');
 const buyShieldBtn = document.getElementById('buy-shield');
+const priceGoldChanceEl = document.getElementById('price-goldchance');
+const statGoldChanceEl = document.getElementById('stat-goldchance');
 const nextStageBtn = document.getElementById('nextStageBtn');
 const winOverlay = document.getElementById('winOverlay');
 const winScoreEl = document.getElementById('win-score');
@@ -58,13 +61,21 @@ const BOSS_HP = 150;
 const shopState = {
   damageBuys: 0,
   radiusBuys: 0,
-  paddleBuys: 0
+  paddleBuys: 0,
+  goldchanceBuys: 0
 };
 
 const stats = {
   ballDamage: 1,
-  ballRadius: 8
+  ballRadius: 8,
+  goldChance: 0
 };
+
+// 황금 특성 관련
+const GOLD_CHANCE_INCREMENT = 0.05;
+const GOLD_CHANCE_MAX = 0.5;
+const GOLD_TRAIT_REWARD = 3;
+const GOLD_TRAIT_BORDER = '#ffd700';
 
 let currentStage = 1;
 const MAX_STAGE = 5;
@@ -178,6 +189,16 @@ function initBricks() {
       b.maxHp = Infinity;
     }
   }
+
+  // 황금 특성 부여 (파괴 불가 / 보스 제외, 블록별 독립 확률)
+  for (const b of bricks) {
+    b.trait = null;
+    if (b.type === BRICK_TYPE.INDESTRUCTIBLE) continue;
+    if (b.type === BRICK_TYPE.BOSS) continue;
+    if (Math.random() < stats.goldChance) {
+      b.trait = 'gold';
+    }
+  }
 }
 
 function resetGame() {
@@ -222,6 +243,7 @@ function updateStatsDisplay() {
   statDamageEl.textContent = stats.ballDamage;
   statRadiusEl.textContent = stats.ballRadius;
   statPaddleEl.textContent = paddle.w;
+  statGoldChanceEl.textContent = Math.round(stats.goldChance * 100) + '%';
   statShieldEl.textContent = hasShield ? 'O' : 'X';
   statGoldEl.textContent = gold;
 }
@@ -248,7 +270,7 @@ function drawBricks() {
     if (!b.alive) continue;
     ctx.fillStyle = b.color;
     ctx.fillRect(b.x, b.y, b.w, b.h);
-    ctx.strokeStyle = '#000';
+    ctx.strokeStyle = b.trait === 'gold' ? GOLD_TRAIT_BORDER : '#000';
     ctx.lineWidth = 1;
     ctx.strokeRect(b.x, b.y, b.w, b.h);
     const cx = b.x + b.w / 2;
@@ -285,6 +307,10 @@ function collideBricks(ball) {
         score += dmg;
         if (b.hp <= 0) {
           b.alive = false;
+          if (b.type !== BRICK_TYPE.BOSS) {
+            gold += b.trait === 'gold' ? GOLD_TRAIT_REWARD : 1;
+            updateStatsDisplay();
+          }
         }
         updateScoreDisplay();
       }
@@ -411,10 +437,12 @@ function fullReset() {
   hasShield = false;
   stats.ballDamage = 1;
   stats.ballRadius = 8;
+  stats.goldChance = 0;
   paddle.w = 100;
   shopState.damageBuys = 0;
   shopState.radiusBuys = 0;
   shopState.paddleBuys = 0;
+  shopState.goldchanceBuys = 0;
   bossStartTime = null;
 }
 
@@ -429,8 +457,7 @@ function gameOver(won) {
       gameState = 'won';
       winOverlay.classList.remove('hidden');
     } else {
-      gold += score;
-      messageEl.textContent = `스테이지 ${currentStage} 클리어! 골드 +${score}`;
+      messageEl.textContent = `스테이지 ${currentStage} 클리어!`;
       currentStage++;
       gameState = 'cleared';
       confirmOverlay.classList.remove('hidden');
@@ -460,14 +487,17 @@ function priceFor(kind) {
 }
 
 function updateShopUI() {
+  const goldChanceMaxed = stats.goldChance >= GOLD_CHANCE_MAX;
   shopGoldEl.textContent = gold;
   priceDamageEl.textContent = priceFor('damage');
   priceRadiusEl.textContent = priceFor('radius');
   pricePaddleEl.textContent = priceFor('paddle');
+  priceGoldChanceEl.textContent = goldChanceMaxed ? '최대' : priceFor('goldchance');
   priceShieldEl.textContent = hasShield ? '보유중' : priceFor('shield');
   buyDamageBtn.disabled = gold < priceFor('damage');
   buyRadiusBtn.disabled = gold < priceFor('radius');
   buyPaddleBtn.disabled = gold < priceFor('paddle');
+  buyGoldChanceBtn.disabled = goldChanceMaxed || gold < priceFor('goldchance');
   buyShieldBtn.disabled = hasShield || gold < priceFor('shield');
 }
 
@@ -478,6 +508,11 @@ function buy(kind) {
     if (hasShield) return;
     gold -= price;
     hasShield = true;
+  } else if (kind === 'goldchance') {
+    if (stats.goldChance >= GOLD_CHANCE_MAX) return;
+    gold -= price;
+    shopState.goldchanceBuys++;
+    stats.goldChance = Math.min(GOLD_CHANCE_MAX, stats.goldChance + GOLD_CHANCE_INCREMENT);
   } else {
     gold -= price;
     shopState[kind + 'Buys']++;
@@ -515,6 +550,7 @@ nextStageBtn.addEventListener('click', () => {
 buyDamageBtn.addEventListener('click', () => buy('damage'));
 buyRadiusBtn.addEventListener('click', () => buy('radius'));
 buyPaddleBtn.addEventListener('click', () => buy('paddle'));
+buyGoldChanceBtn.addEventListener('click', () => buy('goldchance'));
 buyShieldBtn.addEventListener('click', () => buy('shield'));
 
 function returnToStart() {
@@ -552,8 +588,12 @@ testWinBtn.addEventListener('click', () => {
     if (b.type === BRICK_TYPE.INDESTRUCTIBLE) continue;
     score += b.hp;
     b.alive = false;
+    if (b.type !== BRICK_TYPE.BOSS) {
+      gold += b.trait === 'gold' ? GOLD_TRAIT_REWARD : 1;
+    }
   }
   updateScoreDisplay();
+  updateStatsDisplay();
   gameOver(true);
 });
 
