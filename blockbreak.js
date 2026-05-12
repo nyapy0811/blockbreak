@@ -95,7 +95,6 @@ const BRICK_TYPE = {
   NORMAL: 'normal',
   ARMOR: 'armor',
   INDESTRUCTIBLE: 'indestructible',
-  MULTIBALL: 'multiball',
   HARDENED: 'hardened',
   BOSS: 'boss'
 };
@@ -103,20 +102,11 @@ const BRICK_TYPE = {
 const SPECIAL_COLORS = {
   [BRICK_TYPE.ARMOR]: '#7fb3ff',
   [BRICK_TYPE.INDESTRUCTIBLE]: '#3a3a3a',
-  [BRICK_TYPE.MULTIBALL]: '#ffd700',
   [BRICK_TYPE.HARDENED]: '#7c3aed'
 };
 
 function createBall(x, y, dx, dy) {
   return { x, y, r: stats.ballRadius, dx, dy, color: '#222' };
-}
-
-function spawnBallAt(x, y) {
-  const speed = Math.sqrt(32);
-  const angle = (Math.random() * 120 - 60) * Math.PI / 180;
-  const dx = Math.sin(angle) * speed;
-  const dy = Math.cos(angle) * speed;
-  balls.push(createBall(x, y, dx, dy));
 }
 
 function initBricks() {
@@ -162,7 +152,6 @@ function initBricks() {
   const specialTypes = [
     BRICK_TYPE.ARMOR,
     BRICK_TYPE.INDESTRUCTIBLE,
-    BRICK_TYPE.MULTIBALL,
     BRICK_TYPE.HARDENED
   ];
 
@@ -296,9 +285,6 @@ function collideBricks(ball) {
         score += dmg;
         if (b.hp <= 0) {
           b.alive = false;
-          if (b.type === BRICK_TYPE.MULTIBALL) {
-            spawnBallAt(b.x + b.w / 2, b.y + b.h / 2);
-          }
         }
         updateScoreDisplay();
       }
