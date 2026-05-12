@@ -21,7 +21,7 @@ body {
 
 #gameCanvas {
   display: block;
-  background: #ffffff;
+  background: #cce7ff;
   border: 1px solid #333;
 }
 
@@ -197,6 +197,33 @@ body {
   font-size: 12px;
   padding: 3px 8px;
   cursor: pointer;
+}
+
+.theme-controls {
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.theme-label {
+  color: #555;
+}
+
+.theme-btn {
+  font-size: 13px;
+  padding: 4px 12px;
+  cursor: pointer;
+  background: #fff;
+  border: 1px solid #888;
+  border-radius: 4px;
+}
+
+.theme-btn.active {
+  background: #333;
+  color: #fff;
+  border-color: #333;
 }
 
 .shop-panel {

@@ -34,6 +34,25 @@ const winScoreEl = document.getElementById('win-score');
 const restartBtn = document.getElementById('restartBtn');
 const gameoverOverlay = document.getElementById('gameoverOverlay');
 const gameoverRestartBtn = document.getElementById('gameoverRestartBtn');
+const themeDefaultBtn = document.getElementById('themeDefaultBtn');
+const themeCustomBtn = document.getElementById('themeCustomBtn');
+
+// 테마 시스템
+let currentTheme = 'default';
+let bgSprites = []; // {x, y, w, h, dx}
+const themeAssets = {
+  ballImg: new Image(),
+  bgImg: new Image()
+};
+themeAssets.ballImg.src = 'ball.jpg';
+themeAssets.bgImg.src = 'background.jpg';
+themeAssets.ballImg.onload = () => { draw(); };
+themeAssets.bgImg.onload = () => {
+  if (currentTheme === 'custom' && bgSprites.length === 0) {
+    populateBgSprites();
+  }
+  draw();
+};
 
 // 논리 캔버스 크기 (좌표계 기준)
 const W = 800;
@@ -294,13 +313,83 @@ function updateStatsDisplay() {
   statGoldEl.textContent = gold;
 }
 
+function spawnBgSprite() {
+  const img = themeAssets.bgImg;
+  if (!img.complete || !img.naturalWidth) return null;
+  const w = 100 + Math.random() * 200; // 100 ~ 300
+  const ratio = img.naturalHeight / img.naturalWidth;
+  const h = w * ratio;
+  const y = Math.random() * Math.max(0, H - h);
+  const dx = 1.5 + Math.random() * 3.5; // 1.5 ~ 5.0 (평균 ~3.25)
+  return { x: -w, y, w, h, dx };
+}
+
+function populateBgSprites() {
+  bgSprites = [];
+  if (!themeAssets.bgImg.complete || !themeAssets.bgImg.naturalWidth) return;
+  for (let i = 0; i < 5; i++) {
+    const s = spawnBgSprite();
+    if (s) {
+      s.x = Math.random() * W; // 초기엔 캔버스 안 임의 위치
+      bgSprites.push(s);
+    }
+  }
+}
+
+function updateBgSprites() {
+  if (currentTheme !== 'custom') return;
+  for (const s of bgSprites) s.x += s.dx;
+  bgSprites = bgSprites.filter(s => s.x < W);
+  while (bgSprites.length < 5) {
+    const s = spawnBgSprite();
+    if (!s) break;
+    bgSprites.push(s);
+  }
+}
+
+function drawBgSprites() {
+  if (currentTheme !== 'custom') return;
+  const img = themeAssets.bgImg;
+  if (!img.complete || !img.naturalWidth) return;
+  ctx.save();
+  ctx.globalAlpha = 0.6;
+  for (const s of bgSprites) {
+    ctx.drawImage(img, s.x, s.y, s.w, s.h);
+  }
+  ctx.restore();
+}
+
+function setTheme(t) {
+  currentTheme = t;
+  themeDefaultBtn.classList.toggle('active', t === 'default');
+  themeCustomBtn.classList.toggle('active', t === 'custom');
+  if (t === 'custom') {
+    populateBgSprites();
+  } else {
+    bgSprites = [];
+  }
+  draw();
+}
+
 function drawBalls() {
+  const ballImg = themeAssets.ballImg;
+  const useImg = currentTheme === 'custom' && ballImg.complete && ballImg.naturalWidth > 0;
   for (const ball of balls) {
-    ctx.beginPath();
-    ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
-    ctx.fillStyle = ball.color;
-    ctx.fill();
-    ctx.closePath();
+    if (useImg) {
+      const d = ball.r * 2;
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
+      ctx.clip();
+      ctx.drawImage(ballImg, ball.x - ball.r, ball.y - ball.r, d, d);
+      ctx.restore();
+    } else {
+      ctx.beginPath();
+      ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
+      ctx.fillStyle = ball.color;
+      ctx.fill();
+      ctx.closePath();
+    }
   }
 }
 
@@ -435,6 +524,7 @@ function update() {
   if (currentStage === MAX_STAGE) {
     updateBoss();
   }
+  updateBgSprites();
   if (hasShield && balls.length === 1 && balls[0].y - balls[0].r > H) {
     balls[0].y = H - balls[0].r;
     balls[0].dy = -Math.abs(balls[0].dy);
@@ -469,6 +559,7 @@ function update() {
 
 function draw() {
   ctx.clearRect(0, 0, W, H);
+  drawBgSprites();
   drawBricks();
   drawBalls();
   drawPaddle();
@@ -624,6 +715,10 @@ gameoverRestartBtn.addEventListener('click', () => {
   returnToStart();
 });
 
+// 테마 버튼
+themeDefaultBtn.addEventListener('click', () => setTheme('default'));
+themeCustomBtn.addEventListener('click', () => setTheme('custom'));
+
 canvas.addEventListener('mousemove', (e) => {
   const rect = canvas.getBoundingClientRect();
   const mouseX = e.clientX - rect.left;
@@ -643,6 +738,16 @@ testWinBtn.addEventListener('click', () => {
     score += currentStage;
     if (b.type !== BRICK_TYPE.BOSS) {
       gold += b.trait === 'gold' ? GOLD_TRAIT_REWARD : 1;
+    }
+  }
+  updateScoreDisplay();
+  updateStatsDisplay();
+  gameOver(true);
+});
+
+resetGame();
+draw();
+ += b.trait === 'gold' ? GOLD_TRAIT_REWARD : 1;
     }
   }
   updateScoreDisplay();

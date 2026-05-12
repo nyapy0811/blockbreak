@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>벽돌깨기</title>
-  <link rel="stylesheet" href="blockbreak.css">
+  <link rel="stylesheet" href="blockbreak.css?v=3">
 </head>
 <body>
   <div class="game-container">
@@ -63,6 +63,11 @@
         <span class="test-label">테스트:</span>
         <button id="testWinBtn">승리 처리</button>
       </div>
+      <div class="theme-controls">
+        <span class="theme-label">테마:</span>
+        <button id="themeDefaultBtn" class="theme-btn active">기본</button>
+        <button id="themeCustomBtn" class="theme-btn">추가</button>
+      </div>
       <div class="legend">
         <h3>특수 블록</h3>
         <div class="legend-row">
@@ -90,6 +95,6 @@
       <div class="stat-row"><span>골드</span><span id="stat-gold">0</span></div>
     </aside>
   </div>
-  <script src="blockbreak.js"></script>
+  <script src="blockbreak-v3.js"></script>
 </body>
 </html>
