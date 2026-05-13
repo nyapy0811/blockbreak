@@ -10,9 +10,25 @@
     <div class="game-area">
       <div class="canvas-wrap">
         <canvas id="gameCanvas" width="800" height="500"></canvas>
+        <div class="canvas-hud">
+          <span id="stage">스테이지: 1</span>
+          <span id="score">점수: 0</span>
+        </div>
         <div id="mainOverlay" class="overlay">
           <div class="main-modal">
             <h1>벽돌깨기</h1>
+            <div class="main-buttons">
+              <button id="newGameBtn">새 게임</button>
+              <button id="openSettingsBtn">설정</button>
+            </div>
+          </div>
+        </div>
+        <div id="preGameOverlay" class="overlay hidden">
+          <button id="startGameBtn">시작</button>
+        </div>
+        <div id="settingsOverlay" class="overlay hidden">
+          <div class="settings-modal">
+            <h2>설정</h2>
             <div id="main-settings">
               <div class="setting-group">
                 <label>색상</label>
@@ -45,11 +61,14 @@
                 </div>
               </div>
             </div>
-            <button id="mainStartBtn">시작</button>
+            <button id="closeSettingsBtn">닫기</button>
           </div>
         </div>
         <div id="confirmOverlay" class="overlay hidden">
-          <button id="confirmBtn">확인</button>
+          <div class="clear-modal">
+            <h2 id="clear-message">스테이지 클리어!</h2>
+            <button id="confirmBtn">확인</button>
+          </div>
         </div>
         <div id="winOverlay" class="overlay hidden">
           <div class="win-modal">
@@ -94,9 +113,6 @@
         </div>
       </div>
       <div class="controls">
-        <button id="startBtn">시작</button>
-        <span id="stage">스테이지: 1</span>
-        <span id="score">점수: 0</span>
         <span id="message"></span>
       </div>
       <div class="test-controls">

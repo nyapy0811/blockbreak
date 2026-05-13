@@ -1,7 +1,6 @@
 // 벽돌깨기
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
-const startBtn = document.getElementById('startBtn');
 const testWinBtn = document.getElementById('testWinBtn');
 const stageEl = document.getElementById('stage');
 const scoreEl = document.getElementById('score');
@@ -15,6 +14,7 @@ const statGoldEl = document.getElementById('stat-gold');
 // 오버레이 / 상점 DOM
 const confirmOverlay = document.getElementById('confirmOverlay');
 const confirmBtn = document.getElementById('confirmBtn');
+const clearMessageEl = document.getElementById('clear-message');
 const shopOverlay = document.getElementById('shopOverlay');
 const shopGoldEl = document.getElementById('shop-gold');
 const priceDamageEl = document.getElementById('price-damage');
@@ -35,7 +35,12 @@ const restartBtn = document.getElementById('restartBtn');
 const gameoverOverlay = document.getElementById('gameoverOverlay');
 const gameoverRestartBtn = document.getElementById('gameoverRestartBtn');
 const mainOverlay = document.getElementById('mainOverlay');
-const mainStartBtn = document.getElementById('mainStartBtn');
+const newGameBtn = document.getElementById('newGameBtn');
+const openSettingsBtn = document.getElementById('openSettingsBtn');
+const preGameOverlay = document.getElementById('preGameOverlay');
+const startGameBtn = document.getElementById('startGameBtn');
+const settingsOverlay = document.getElementById('settingsOverlay');
+const closeSettingsBtn = document.getElementById('closeSettingsBtn');
 const winMainBtn = document.getElementById('winMainBtn');
 const gameoverMainBtn = document.getElementById('gameoverMainBtn');
 const legendArmorEl = document.getElementById('legend-armor');
@@ -72,6 +77,7 @@ const BOSS_TIME_LIMIT_SEC = 200;
 const BOSS_W = 180;
 const BOSS_H = 90;
 const BOSS_HP = 150;
+const BOSS_HIT_COOLDOWN_MS = 100;
 
 const shopState = {
   damageBuys: 0,
@@ -201,7 +207,8 @@ function initBricks() {
       color: settings.bossColor,
       type: BRICK_TYPE.BOSS,
       dx: Math.cos(angle) * BOSS_SPEED,
-      dy: Math.sin(angle) * BOSS_SPEED
+      dy: Math.sin(angle) * BOSS_SPEED,
+      lastHitTime: 0
     });
     return;
   }
@@ -400,22 +407,34 @@ function collideBricks(ball) {
       const minOverlap = Math.min(overlapLeft, overlapRight, overlapTop, overlapBottom);
 
       if (b.type !== BRICK_TYPE.INDESTRUCTIBLE) {
-        let dmg = b.type === BRICK_TYPE.ARMOR ? 1 : stats.ballDamage;
-        dmg = Math.min(dmg, b.hp);
-        b.hp -= dmg;
-        if (b.hp <= 0) {
-          b.alive = false;
-          score += currentStage;
-          if (b.type !== BRICK_TYPE.BOSS) {
-            gold += b.trait === 'gold' ? GOLD_TRAIT_REWARD : 1;
-            updateStatsDisplay();
-            playSfx(b.trait === 'gold' ? 'goldBrick' : 'brickDestroy');
-          } else {
-            playSfx('brickDestroy');
-          }
-          updateScoreDisplay();
-        } else {
+        const isBoss = b.type === BRICK_TYPE.BOSS;
+        // 보스 피격 쿨다운: 100ms 이내 재충돌은 데미지 무시 (튕김·소리만)
+        let onCooldown = false;
+        if (isBoss) {
+          const now = performance.now();
+          if (now - b.lastHitTime < BOSS_HIT_COOLDOWN_MS) onCooldown = true;
+          else b.lastHitTime = now;
+        }
+        if (onCooldown) {
           playSfx('brickHit');
+        } else {
+          let dmg = b.type === BRICK_TYPE.ARMOR ? 1 : stats.ballDamage;
+          dmg = Math.min(dmg, b.hp);
+          b.hp -= dmg;
+          if (b.hp <= 0) {
+            b.alive = false;
+            score += currentStage;
+            if (!isBoss) {
+              gold += b.trait === 'gold' ? GOLD_TRAIT_REWARD : 1;
+              updateStatsDisplay();
+              playSfx(b.trait === 'gold' ? 'goldBrick' : 'brickDestroy');
+            } else {
+              playSfx('brickDestroy');
+            }
+            updateScoreDisplay();
+          } else {
+            playSfx('brickHit');
+          }
         }
       } else {
         playSfx('brickHit');
@@ -567,7 +586,8 @@ function gameOver(won) {
       gameState = 'won';
       winOverlay.classList.remove('hidden');
     } else {
-      messageEl.textContent = `스테이지 ${currentStage} 클리어!`;
+      clearMessageEl.textContent = `스테이지 ${currentStage} 클리어!`;
+      messageEl.textContent = '';
       currentStage++;
       gameState = 'cleared';
       confirmOverlay.classList.remove('hidden');
@@ -646,6 +666,9 @@ function openShop() {
 function closeShopToNextStage() {
   shopOverlay.classList.add('hidden');
   resetGame();
+  // 새 스테이지도 메인 게임 시작과 동일하게 가운데 "시작" 버튼으로 진입
+  gameState = 'preGame';
+  preGameOverlay.classList.remove('hidden');
   draw();
 }
 
@@ -670,6 +693,9 @@ function returnToStart() {
   gameoverOverlay.classList.add('hidden');
   fullReset();
   resetGame();
+  // 재시작도 새 게임처럼 가운데 "시작" 버튼으로 진입
+  gameState = 'preGame';
+  preGameOverlay.classList.remove('hidden');
   draw();
 }
 
@@ -678,6 +704,8 @@ function returnToMain() {
   gameoverOverlay.classList.add('hidden');
   confirmOverlay.classList.add('hidden');
   shopOverlay.classList.add('hidden');
+  preGameOverlay.classList.add('hidden');
+  settingsOverlay.classList.add('hidden');
   fullReset();
   resetGame();
   gameState = 'main';
@@ -695,12 +723,38 @@ gameoverRestartBtn.addEventListener('click', () => {
   returnToStart();
 });
 
-mainStartBtn.addEventListener('click', () => {
+// 메인: 새 게임 → 캔버스 가운데 시작 버튼만 표시 (preGame)
+newGameBtn.addEventListener('click', () => {
   if (gameState !== 'main') return;
-  mainOverlay.classList.add('hidden');
   fullReset();
   resetGame();
   draw();
+  mainOverlay.classList.add('hidden');
+  preGameOverlay.classList.remove('hidden');
+  gameState = 'preGame';
+});
+
+// 메인: 설정 → 설정 오버레이
+openSettingsBtn.addEventListener('click', () => {
+  if (gameState !== 'main') return;
+  mainOverlay.classList.add('hidden');
+  settingsOverlay.classList.remove('hidden');
+  gameState = 'settings';
+});
+
+// 설정: 닫기 → 메인 복귀
+closeSettingsBtn.addEventListener('click', () => {
+  if (gameState !== 'settings') return;
+  settingsOverlay.classList.add('hidden');
+  mainOverlay.classList.remove('hidden');
+  gameState = 'main';
+});
+
+// preGame: 시작 → 실제 게임 시작
+startGameBtn.addEventListener('click', () => {
+  if (gameState !== 'preGame') return;
+  preGameOverlay.classList.add('hidden');
+  gameState = 'ready';
   tryPlayBgm();   // 첫 사용자 인터랙션이라 BGM 재생 시도 가능
   startGame();
 });
@@ -862,15 +916,14 @@ gameoverMainBtn.addEventListener('click', () => {
   returnToMain();
 });
 
-canvas.addEventListener('mousemove', (e) => {
+// 마우스가 캔버스 밖이어도 패드가 따라가도록 document 전체에서 수신
+document.addEventListener('mousemove', (e) => {
   const rect = canvas.getBoundingClientRect();
   const mouseX = e.clientX - rect.left;
   paddle.x = mouseX - paddle.w / 2;
   if (paddle.x < 0) paddle.x = 0;
   if (paddle.x + paddle.w > W) paddle.x = W - paddle.w;
 });
-
-startBtn.addEventListener('click', startGame);
 
 testWinBtn.addEventListener('click', () => {
   if (!running) return;

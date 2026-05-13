@@ -38,6 +38,20 @@ body {
   display: none;
 }
 
+.clear-modal {
+  background: #fff;
+  padding: 32px 40px;
+  border-radius: 8px;
+  text-align: center;
+  min-width: 280px;
+}
+
+.clear-modal h2 {
+  margin: 0 0 20px;
+  font-size: 32px;
+  color: #2e7d32;
+}
+
 #confirmBtn {
   padding: 12px 36px;
   font-size: 18px;
@@ -155,6 +169,66 @@ body {
   margin-bottom: 24px;
 }
 
+.main-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+}
+
+#newGameBtn,
+#openSettingsBtn {
+  padding: 12px 36px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  border-radius: 6px;
+  border: 2px solid #222;
+  background: #fff;
+  min-width: 180px;
+}
+
+#newGameBtn {
+  background: #222;
+  color: #fff;
+}
+
+.settings-modal {
+  background: #fff;
+  padding: 36px 48px;
+  border-radius: 10px;
+  text-align: center;
+  min-width: 340px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.settings-modal h2 {
+  margin: 0 0 24px;
+  font-size: 28px;
+}
+
+#closeSettingsBtn {
+  margin-top: 16px;
+  padding: 10px 28px;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  border-radius: 6px;
+  border: 2px solid #222;
+  background: #fff;
+}
+
+#startGameBtn {
+  padding: 18px 56px;
+  font-size: 28px;
+  font-weight: bold;
+  cursor: pointer;
+  border-radius: 8px;
+  border: 2px solid #222;
+  background: #fff;
+}
+
 .setting-group {
   margin-bottom: 16px;
   text-align: center;
@@ -189,11 +263,26 @@ body {
   font-weight: bold;
 }
 
-#mainStartBtn {
-  padding: 12px 40px;
-  font-size: 18px;
-  font-weight: bold;
-  cursor: pointer;
+/* BGM·효과음 ON/OFF 토글: 켜기는 녹색, 끄기는 회색으로 명확히 구분 */
+.bgm-toggle-btn.active[data-bgm="on"],
+.sfx-toggle-btn.active[data-sfx="on"] {
+  background: #2e7d32;
+  border-color: #1b5e20;
+  color: #fff;
+}
+
+.bgm-toggle-btn.active[data-bgm="off"],
+.sfx-toggle-btn.active[data-sfx="off"] {
+  background: #6c6c6c;
+  border-color: #424242;
+  color: #fff;
+}
+
+/* 배경 프리셋 활성 상태도 동일하게 녹색으로 강조 */
+.bg-preset-btn.active {
+  background: #2e7d32;
+  border-color: #1b5e20;
+  color: #fff;
 }
 
 .legend {
@@ -233,16 +322,33 @@ body {
   gap: 12px;
 }
 
-#startBtn {
-  padding: 6px 16px;
-  font-size: 14px;
-  cursor: pointer;
-}
-
 #stage,
 #score {
   font-size: 16px;
   font-weight: bold;
+}
+
+.canvas-hud {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-end;
+  pointer-events: none;
+  z-index: 1; /* overlay(.overlay)는 DOM 뒤에 있어 z 미설정 시에도 위에 옴 — HUD는 그 아래로 */
+}
+
+.canvas-hud #stage,
+.canvas-hud #score {
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  padding: 3px 10px;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: bold;
+  letter-spacing: 0.02em;
 }
 
 #message {
