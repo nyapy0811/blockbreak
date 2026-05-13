@@ -34,6 +34,14 @@ const winScoreEl = document.getElementById('win-score');
 const restartBtn = document.getElementById('restartBtn');
 const gameoverOverlay = document.getElementById('gameoverOverlay');
 const gameoverRestartBtn = document.getElementById('gameoverRestartBtn');
+const mainOverlay = document.getElementById('mainOverlay');
+const mainStartBtn = document.getElementById('mainStartBtn');
+const winMainBtn = document.getElementById('winMainBtn');
+const gameoverMainBtn = document.getElementById('gameoverMainBtn');
+const legendArmorEl = document.getElementById('legend-armor');
+const legendIndestructibleEl = document.getElementById('legend-indestructible');
+const legendHardenedEl = document.getElementById('legend-hardened');
+const bgmAudio = document.getElementById('bgmAudio');
 
 // 논리 캔버스 크기 (좌표계 기준)
 const W = 800;
@@ -83,7 +91,40 @@ const GOLD_CHANCE_INCREMENT = 0.10;
 const GOLD_CHANCE_MAX = 1.0;
 const GOLD_TRAIT_REWARD = 3;
 const GOLD_TRAIT_BORDER = '#ffd700';
-const NORMAL_BRICK_COLOR = '#e63946';
+
+// 색상 프리셋 (메인 화면 환경 설정) — 모든 블록 종류에 적용
+const COLOR_PRESETS = {
+  default: {
+    ball: '#222222', brick: '#e63946',
+    armor: '#7fb3ff', indestructible: '#3a3a3a', hardened: '#7c3aed', boss: '#b51b00'
+  },
+  pastel: {
+    ball: '#6b9bd1', brick: '#ffb3ba',
+    armor: '#b8d8ff', indestructible: '#9a9a9a', hardened: '#d4b3e8', boss: '#ff8b94'
+  },
+  neon: {
+    ball: '#00ffff', brick: '#ff00ff',
+    armor: '#00bfff', indestructible: '#1a1a1a', hardened: '#b300ff', boss: '#ff0066'
+  }
+};
+// 배경 프리셋 (CSS background 값, placeholder — 이미지 자산 들어오면 url(...)로 교체)
+const BACKGROUND_PRESETS = {
+  default: '#ffffff',
+  space:   'linear-gradient(180deg, #0a0a2e 0%, #1a1a3e 100%)',
+  forest:  'linear-gradient(180deg, #2d5016 0%, #4a7c2a 100%)'
+};
+
+const settings = {
+  ballColor:           COLOR_PRESETS.default.ball,
+  brickColor:          COLOR_PRESETS.default.brick,
+  armorColor:          COLOR_PRESETS.default.armor,
+  indestructibleColor: COLOR_PRESETS.default.indestructible,
+  hardenedColor:       COLOR_PRESETS.default.hardened,
+  bossColor:           COLOR_PRESETS.default.boss,
+  backgroundTheme:     'default',
+  bgmEnabled:          true,
+  sfxEnabled:          true
+};
 
 let currentStage = 1;
 const MAX_STAGE = 5;
@@ -116,14 +157,8 @@ const BRICK_TYPE = {
   BOSS: 'boss'
 };
 
-const SPECIAL_COLORS = {
-  [BRICK_TYPE.ARMOR]: '#7fb3ff',
-  [BRICK_TYPE.INDESTRUCTIBLE]: '#3a3a3a',
-  [BRICK_TYPE.HARDENED]: '#7c3aed'
-};
-
 function createBall(x, y, dx, dy) {
-  return { x, y, r: stats.ballRadius, dx, dy, color: '#222' };
+  return { x, y, r: stats.ballRadius, dx, dy, color: settings.ballColor };
 }
 
 function shuffleInPlace(arr) {
@@ -135,14 +170,16 @@ function shuffleInPlace(arr) {
 
 function applyBrickType(b, type, baseHp) {
   b.type = type;
-  b.color = SPECIAL_COLORS[type];
   if (type === BRICK_TYPE.ARMOR) {
+    b.color = settings.armorColor;
     b.hp = 5;
     b.maxHp = 5;
   } else if (type === BRICK_TYPE.HARDENED) {
+    b.color = settings.hardenedColor;
     b.hp = baseHp * 2;
     b.maxHp = baseHp * 2;
   } else if (type === BRICK_TYPE.INDESTRUCTIBLE) {
+    b.color = settings.indestructibleColor;
     b.hp = Infinity;
     b.maxHp = Infinity;
   }
@@ -161,7 +198,7 @@ function initBricks() {
       hp: BOSS_HP,
       maxHp: BOSS_HP,
       alive: true,
-      color: '#b51b00',
+      color: settings.bossColor,
       type: BRICK_TYPE.BOSS,
       dx: Math.cos(angle) * BOSS_SPEED,
       dy: Math.sin(angle) * BOSS_SPEED
@@ -182,7 +219,7 @@ function initBricks() {
         hp: baseHp,
         maxHp: baseHp,
         alive: true,
-        color: NORMAL_BRICK_COLOR,
+        color: settings.brickColor,
         type: BRICK_TYPE.NORMAL
       });
     }
@@ -372,9 +409,16 @@ function collideBricks(ball) {
           if (b.type !== BRICK_TYPE.BOSS) {
             gold += b.trait === 'gold' ? GOLD_TRAIT_REWARD : 1;
             updateStatsDisplay();
+            playSfx(b.trait === 'gold' ? 'goldBrick' : 'brickDestroy');
+          } else {
+            playSfx('brickDestroy');
           }
           updateScoreDisplay();
+        } else {
+          playSfx('brickHit');
         }
+      } else {
+        playSfx('brickHit');
       }
 
       if (minOverlap === overlapLeft) {
@@ -422,6 +466,7 @@ function updateBall(ball) {
     const angle = (Math.random() * 120 - 60) * Math.PI / 180;
     ball.dx = Math.sin(angle) * speed;
     ball.dy = -Math.cos(angle) * speed;
+    playSfx('paddle');
   }
 
   collideBricks(ball);
@@ -451,6 +496,7 @@ function update() {
     balls[0].dy = -Math.abs(balls[0].dy);
     hasShield = false;
     messageEl.textContent = '보호막 발동!';
+    playSfx('shield');
     updateStatsDisplay();
     setTimeout(() => {
       if (messageEl.textContent === '보호막 발동!') {
@@ -526,10 +572,12 @@ function gameOver(won) {
       gameState = 'cleared';
       confirmOverlay.classList.remove('hidden');
     }
+    playSfx('win');
   } else {
     // 패배: 게임 오버 오버레이 표시. 실제 리셋은 재시작 버튼 클릭 시 수행
     gameState = 'gameover';
     gameoverOverlay.classList.remove('hidden');
+    playSfx('gameover');
   }
   updateStageDisplay();
   updateStatsDisplay();
@@ -625,6 +673,18 @@ function returnToStart() {
   draw();
 }
 
+function returnToMain() {
+  winOverlay.classList.add('hidden');
+  gameoverOverlay.classList.add('hidden');
+  confirmOverlay.classList.add('hidden');
+  shopOverlay.classList.add('hidden');
+  fullReset();
+  resetGame();
+  gameState = 'main';
+  mainOverlay.classList.remove('hidden');
+  draw();
+}
+
 restartBtn.addEventListener('click', () => {
   if (gameState !== 'won') return;
   returnToStart();
@@ -633,6 +693,173 @@ restartBtn.addEventListener('click', () => {
 gameoverRestartBtn.addEventListener('click', () => {
   if (gameState !== 'gameover') return;
   returnToStart();
+});
+
+mainStartBtn.addEventListener('click', () => {
+  if (gameState !== 'main') return;
+  mainOverlay.classList.add('hidden');
+  fullReset();
+  resetGame();
+  draw();
+  tryPlayBgm();   // 첫 사용자 인터랙션이라 BGM 재생 시도 가능
+  startGame();
+});
+
+function updateLegendColors() {
+  legendArmorEl.style.background = settings.armorColor;
+  legendIndestructibleEl.style.background = settings.indestructibleColor;
+  legendHardenedEl.style.background = settings.hardenedColor;
+}
+
+function applyBackground() {
+  canvas.style.background = BACKGROUND_PRESETS[settings.backgroundTheme];
+}
+
+// ============ 사운드 ============
+function tryPlayBgm() {
+  if (!settings.bgmEnabled || !bgmAudio) return;
+  const p = bgmAudio.play();
+  if (p && typeof p.catch === 'function') p.catch(() => {}); // autoplay/404 등 무시
+}
+function pauseBgm() {
+  if (bgmAudio) bgmAudio.pause();
+}
+
+let audioCtx = null;
+function getAudioCtx() {
+  if (!audioCtx) {
+    const Ctor = window.AudioContext || window.webkitAudioContext;
+    if (Ctor) audioCtx = new Ctor();
+  }
+  return audioCtx;
+}
+
+// 효과음: Web Audio로 합성. type별로 파형/주파수/지속시간을 다르게.
+function playSfx(type) {
+  if (!settings.sfxEnabled) return;
+  const ctx = getAudioCtx();
+  if (!ctx) return;
+  const now = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.connect(gain).connect(ctx.destination);
+  let dur = 0.05;
+  switch (type) {
+    case 'paddle':
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(440, now);
+      gain.gain.setValueAtTime(0.18, now);
+      dur = 0.05;
+      break;
+    case 'brickHit':
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(220, now);
+      gain.gain.setValueAtTime(0.12, now);
+      dur = 0.04;
+      break;
+    case 'brickDestroy':
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(320, now);
+      osc.frequency.linearRampToValueAtTime(160, now + 0.1);
+      gain.gain.setValueAtTime(0.22, now);
+      dur = 0.1;
+      break;
+    case 'goldBrick':
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(660, now);
+      osc.frequency.exponentialRampToValueAtTime(1320, now + 0.15);
+      gain.gain.setValueAtTime(0.25, now);
+      dur = 0.15;
+      break;
+    case 'win':
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(523, now);            // C5
+      osc.frequency.setValueAtTime(659, now + 0.1);      // E5
+      osc.frequency.setValueAtTime(784, now + 0.2);      // G5
+      gain.gain.setValueAtTime(0.22, now);
+      dur = 0.4;
+      break;
+    case 'gameover':
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(440, now);
+      osc.frequency.linearRampToValueAtTime(110, now + 0.5);
+      gain.gain.setValueAtTime(0.25, now);
+      dur = 0.5;
+      break;
+    case 'shield':
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(800, now);
+      gain.gain.setValueAtTime(0.18, now);
+      dur = 0.2;
+      break;
+    default:
+      return;
+  }
+  gain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+  osc.start(now);
+  osc.stop(now + dur + 0.02);
+}
+
+// 색상 프리셋 선택 — 공/일반/특수/보스 색상 모두 갱신
+document.querySelectorAll('.preset-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const preset = btn.dataset.preset;
+    const p = COLOR_PRESETS[preset];
+    if (!p) return;
+    document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    settings.ballColor           = p.ball;
+    settings.brickColor          = p.brick;
+    settings.armorColor          = p.armor;
+    settings.indestructibleColor = p.indestructible;
+    settings.hardenedColor       = p.hardened;
+    settings.bossColor           = p.boss;
+    updateLegendColors();
+  });
+});
+
+// 배경 프리셋 선택
+document.querySelectorAll('.bg-preset-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const theme = btn.dataset.bg;
+    if (!BACKGROUND_PRESETS[theme]) return;
+    document.querySelectorAll('.bg-preset-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    settings.backgroundTheme = theme;
+    applyBackground();
+  });
+});
+
+// BGM 토글
+document.querySelectorAll('.bgm-toggle-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const v = btn.dataset.bgm; // 'on' | 'off'
+    document.querySelectorAll('.bgm-toggle-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    settings.bgmEnabled = (v === 'on');
+    if (settings.bgmEnabled) tryPlayBgm();
+    else pauseBgm();
+  });
+});
+
+// 효과음 토글
+document.querySelectorAll('.sfx-toggle-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const v = btn.dataset.sfx;
+    document.querySelectorAll('.sfx-toggle-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    settings.sfxEnabled = (v === 'on');
+  });
+});
+
+winMainBtn.addEventListener('click', () => {
+  if (gameState !== 'won') return;
+  returnToMain();
+});
+
+gameoverMainBtn.addEventListener('click', () => {
+  if (gameState !== 'gameover') return;
+  returnToMain();
 });
 
 canvas.addEventListener('mousemove', (e) => {
@@ -662,4 +889,6 @@ testWinBtn.addEventListener('click', () => {
 });
 
 resetGame();
+applyBackground();
 draw();
+gameState = 'main'; // 페이지 로드 시 메인 화면부터 (HTML의 mainOverlay 기본 표시)

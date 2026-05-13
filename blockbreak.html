@@ -10,6 +10,44 @@
     <div class="game-area">
       <div class="canvas-wrap">
         <canvas id="gameCanvas" width="800" height="500"></canvas>
+        <div id="mainOverlay" class="overlay">
+          <div class="main-modal">
+            <h1>벽돌깨기</h1>
+            <div id="main-settings">
+              <div class="setting-group">
+                <label>색상</label>
+                <div class="preset-buttons">
+                  <button type="button" data-preset="default" class="preset-btn active">기본</button>
+                  <button type="button" data-preset="pastel"  class="preset-btn">파스텔톤</button>
+                  <button type="button" data-preset="neon"    class="preset-btn">형광색</button>
+                </div>
+              </div>
+              <div class="setting-group">
+                <label>배경</label>
+                <div class="preset-buttons">
+                  <button type="button" data-bg="default" class="bg-preset-btn active">기본</button>
+                  <button type="button" data-bg="space"   class="bg-preset-btn">우주</button>
+                  <button type="button" data-bg="forest"  class="bg-preset-btn">숲</button>
+                </div>
+              </div>
+              <div class="setting-group">
+                <label>BGM</label>
+                <div class="preset-buttons">
+                  <button type="button" data-bgm="on"  class="bgm-toggle-btn active">켜기</button>
+                  <button type="button" data-bgm="off" class="bgm-toggle-btn">끄기</button>
+                </div>
+              </div>
+              <div class="setting-group">
+                <label>효과음</label>
+                <div class="preset-buttons">
+                  <button type="button" data-sfx="on"  class="sfx-toggle-btn active">켜기</button>
+                  <button type="button" data-sfx="off" class="sfx-toggle-btn">끄기</button>
+                </div>
+              </div>
+            </div>
+            <button id="mainStartBtn">시작</button>
+          </div>
+        </div>
         <div id="confirmOverlay" class="overlay hidden">
           <button id="confirmBtn">확인</button>
         </div>
@@ -18,12 +56,14 @@
             <h2>Winner!</h2>
             <p>점수: <span id="win-score">0</span></p>
             <button id="restartBtn">재시작</button>
+            <button id="winMainBtn">메인으로</button>
           </div>
         </div>
         <div id="gameoverOverlay" class="overlay hidden">
           <div class="gameover-modal">
             <h2>Game Over</h2>
             <button id="gameoverRestartBtn">재시작</button>
+            <button id="gameoverMainBtn">메인으로</button>
           </div>
         </div>
         <div id="shopOverlay" class="overlay hidden">
@@ -66,15 +106,15 @@
       <div class="legend">
         <h3>특수 블록</h3>
         <div class="legend-row">
-          <span class="legend-color" style="background:#7fb3ff"></span>
+          <span class="legend-color" id="legend-armor" style="background:#7fb3ff"></span>
           <span>갑옷 — 한 번에 1 데미지만 받음 (HP 5 고정)</span>
         </div>
         <div class="legend-row">
-          <span class="legend-color" style="background:#3a3a3a"></span>
+          <span class="legend-color" id="legend-indestructible" style="background:#3a3a3a"></span>
           <span>파괴 불가 — 점수 없이 튕김만, 클리어 조건 제외</span>
         </div>
         <div class="legend-row">
-          <span class="legend-color" style="background:#7c3aed"></span>
+          <span class="legend-color" id="legend-hardened" style="background:#7c3aed"></span>
           <span>강화 — HP 2배</span>
         </div>
       </div>
@@ -90,6 +130,7 @@
       <div class="stat-row"><span>골드</span><span id="stat-gold">0</span></div>
     </aside>
   </div>
+  <audio id="bgmAudio" src="assets/bgm.mp3" loop preload="auto"></audio>
   <script src="blockbreak.js"></script>
 </body>
 </html>

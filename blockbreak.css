@@ -129,6 +129,73 @@ body {
   color: #c00;
 }
 
+#winMainBtn,
+#gameoverMainBtn {
+  padding: 8px 20px;
+  font-size: 14px;
+  cursor: pointer;
+  margin-left: 8px;
+}
+
+.main-modal {
+  background: #fff;
+  padding: 56px 64px;
+  border-radius: 10px;
+  text-align: center;
+  min-width: 340px;
+}
+
+.main-modal h1 {
+  margin: 0 0 28px;
+  font-size: 52px;
+  letter-spacing: 0.04em;
+}
+
+#main-settings {
+  margin-bottom: 24px;
+}
+
+.setting-group {
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.setting-group > label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 13px;
+  color: #777;
+  letter-spacing: 0.05em;
+}
+
+.preset-buttons {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+}
+
+.preset-btn {
+  padding: 6px 14px;
+  font-size: 13px;
+  cursor: pointer;
+  border: 2px solid #d0d0d0;
+  background: #fff;
+  border-radius: 4px;
+}
+
+.preset-btn.active {
+  border-color: #222;
+  background: #f4f4f4;
+  font-weight: bold;
+}
+
+#mainStartBtn {
+  padding: 12px 40px;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
 .legend {
   margin-top: 12px;
   background: #fff;
