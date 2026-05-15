@@ -8,7 +8,6 @@ const messageEl = document.getElementById('message');
 const statDamageEl = document.getElementById('stat-damage');
 const statRadiusEl = document.getElementById('stat-radius');
 const statPaddleEl = document.getElementById('stat-paddle');
-const statShieldEl = document.getElementById('stat-shield');
 const statGoldEl = document.getElementById('stat-gold');
 
 // 오버레이 / 상점 DOM
@@ -79,6 +78,12 @@ const BOSS_H = 90;
 const BOSS_HP = 150;
 const BOSS_HIT_COOLDOWN_MS = 100;
 
+// 패드 반사 보정: 충돌 전 100ms 평균 패드 속도(px/frame 환산)에 비례한 회전
+const PADDLE_SPIN_FACTOR = 0.05;          // rad / (px/frame)
+const PADDLE_SPIN_MAX_ANGLE = Math.PI / 4; // 보정 상한 ±45°
+const PADDLE_HISTORY_WINDOW_MS = 100;     // 평균 속도 산출 구간
+
+
 const shopState = {
   damageBuys: 0,
   radiusBuys: 0,
@@ -142,7 +147,11 @@ const paddle = {
   w: 100,
   h: 12,
   x: (W - 100) / 2,
-  y: H - 20
+  y: H - 20,
+  history: [],          // {t, v} 속도 샘플 (최근 PADDLE_HISTORY_WINDOW_MS 구간)
+  dx: 0,                // history 평균 속도 (px/frame@60 환산)
+  lastFrameX: (W - 100) / 2,
+  lastFrameTime: 0
 };
 
 const brick = {
@@ -294,6 +303,10 @@ function initBricks() {
 
 function resetGame() {
   paddle.x = (W - paddle.w) / 2;
+  paddle.history = [];
+  paddle.dx = 0;
+  paddle.lastFrameX = paddle.x;
+  paddle.lastFrameTime = 0;
   const speed = Math.sqrt(32);
   const angle = (Math.random() * 120 - 60) * Math.PI / 180;
   const dx = Math.sin(angle) * speed;
@@ -334,7 +347,6 @@ function updateStatsDisplay() {
   statRadiusEl.textContent = stats.ballRadius;
   statPaddleEl.textContent = paddle.w;
   statGoldChanceEl.textContent = Math.round(stats.goldChance * 100) + '%';
-  statShieldEl.textContent = hasShield ? 'O' : 'X';
   statGoldEl.textContent = gold;
 }
 
@@ -351,6 +363,12 @@ function drawBalls() {
 function drawPaddle() {
   ctx.fillStyle = '#000';
   ctx.fillRect(paddle.x, paddle.y, paddle.w, paddle.h);
+}
+
+function drawShield() {
+  if (!hasShield) return;
+  ctx.fillStyle = '#4caf50';
+  ctx.fillRect(0, H - 4, W, 4);
 }
 
 function drawBorder(x, y, w, h, color) {
@@ -481,10 +499,22 @@ function updateBall(ball) {
     ball.x <= paddle.x + paddle.w &&
     ball.dy > 0
   ) {
-    const speed = Math.sqrt(ball.dx * ball.dx + ball.dy * ball.dy);
-    const angle = (Math.random() * 120 - 60) * Math.PI / 180;
-    ball.dx = Math.sin(angle) * speed;
-    ball.dy = -Math.cos(angle) * speed;
+    // 기본: 입사각 = 반사각 (수평 반사)
+    ball.dy = -ball.dy;
+    // 보정: 패드 속도에 비례한 회전, 상한 ±PADDLE_SPIN_MAX_ANGLE
+    let adj = paddle.dx * PADDLE_SPIN_FACTOR;
+    if (adj > PADDLE_SPIN_MAX_ANGLE) adj = PADDLE_SPIN_MAX_ANGLE;
+    else if (adj < -PADDLE_SPIN_MAX_ANGLE) adj = -PADDLE_SPIN_MAX_ANGLE;
+    if (adj !== 0) {
+      const cosA = Math.cos(adj);
+      const sinA = Math.sin(adj);
+      const ndx = ball.dx * cosA - ball.dy * sinA;
+      const ndy = ball.dx * sinA + ball.dy * cosA;
+      ball.dx = ndx;
+      ball.dy = ndy;
+      // 안전: 회전 후에도 공이 위로 향하게 유지
+      if (ball.dy > 0) ball.dy = -ball.dy;
+    }
     playSfx('paddle');
   }
 
@@ -504,6 +534,22 @@ function updateBoss() {
 }
 
 function update() {
+  // 매 프레임의 순간 속도(px/frame@60 등가)를 기록 → 100ms 윈도우 평균
+  const now = performance.now();
+  const dtMs = paddle.lastFrameTime > 0 ? now - paddle.lastFrameTime : 0;
+  if (dtMs > 0) {
+    const v = (paddle.x - paddle.lastFrameX) * (1000 / 60) / dtMs;
+    paddle.history.push({ t: now, v });
+    while (paddle.history.length > 1 && now - paddle.history[0].t > PADDLE_HISTORY_WINDOW_MS) {
+      paddle.history.shift();
+    }
+  }
+  paddle.lastFrameX = paddle.x;
+  paddle.lastFrameTime = now;
+  let sum = 0;
+  for (const s of paddle.history) sum += s.v;
+  paddle.dx = paddle.history.length > 0 ? sum / paddle.history.length : 0;
+
   for (const ball of balls) {
     updateBall(ball);
   }
@@ -548,6 +594,7 @@ function draw() {
   drawBricks();
   drawBalls();
   drawPaddle();
+  drawShield();
 }
 
 function loop() {
