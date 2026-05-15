@@ -92,13 +92,13 @@ const effects = {
   indestructiblePierce: false,  // 파괴불가 블록 관통
   splashRatio: 0,               // 인접 블록 50% 스플래시 (값 0.5 등)
   bouncyHitsPerSpawn: 0,        // N회 블록 충돌마다 작은 튀는 공 1개 (0이면 비활성)
-  homingBallInterval: 0,        // 초 단위 추적 공 생성 주기 (0이면 비활성)
+  sniperInterval: 0,            // 초 단위 저격 공 발사 주기 (0이면 비활성)
   firstWallPierce: false,       // 처음 벽 충돌 전까지 블록 관통
   goldMult: 1                   // 골드 획득 배수
 };
 const effectsState = {
   bouncyHitCount: 0,
-  lastHomingSpawnTime: 0
+  lastSniperSpawnTime: 0
 };
 
 
@@ -213,15 +213,28 @@ function spawnBouncyBall(x, y) {
 }
 
 // 추적 공: 가장 가까운 블록을 향해 이동, 첫 충돌 시 소멸
-function spawnHomingBall() {
-  const speed = stats.ballSpeed;
+// 메인 공에서 가장 가까운 블록 방향으로 직선 발사하는 1회용 소형 공 (저격)
+// 속도는 메인 공의 2배
+function spawnSniperBall() {
+  const mainBall = balls.find(isMainBall);
+  if (!mainBall) return;
+  const target = findNearestBrick(mainBall);
+  if (!target) return;
+  const tx = target.x + target.w / 2;
+  const ty = target.y + target.h / 2;
+  const ddx = tx - mainBall.x;
+  const ddy = ty - mainBall.y;
+  const dist = Math.sqrt(ddx * ddx + ddy * ddy);
+  if (dist <= 0) return;
+  const speed = stats.ballSpeed * 2;
   const ball = {
-    x: paddle.x + paddle.w / 2,
-    y: paddle.y - 20,
+    x: mainBall.x,
+    y: mainBall.y,
     r: stats.ballRadius * 0.6,
-    dx: 0, dy: -speed,
+    dx: ddx / dist * speed,
+    dy: ddy / dist * speed,
     color: settings.ballColor,
-    homing: true
+    vanishOnHit: true
   };
   balls.push(ball);
 }
@@ -241,16 +254,19 @@ function findNearestBrick(ball) {
   return best;
 }
 
-function updateHomingDirection(ball) {
-  const t = findNearestBrick(ball);
-  if (!t) return;
-  const dx = (t.x + t.w / 2) - ball.x;
-  const dy = (t.y + t.h / 2) - ball.y;
-  const dist = Math.sqrt(dx * dx + dy * dy);
-  if (dist <= 0) return;
-  const speed = Math.sqrt(ball.dx * ball.dx + ball.dy * ball.dy) || stats.ballSpeed;
-  ball.dx = dx / dist * speed;
-  ball.dy = dy / dist * speed;
+// 보조 공(추적/튀는 소형)이 아닌 "메인 공" 여부 — 특수 능력은 메인 공에만 적용
+function isMainBall(ball) {
+  return ball.bouncesLeft === undefined && !ball.vanishOnHit;
+}
+
+// 튀는 소형 공 스폰 카운터 증가 (메인 공의 충돌만 카운트)
+function incrementBouncyHitCount(ball) {
+  if (!isMainBall(ball)) return;
+  if (effects.bouncyHitsPerSpawn <= 0) return;
+  effectsState.bouncyHitCount++;
+  if (effectsState.bouncyHitCount % effects.bouncyHitsPerSpawn === 0) {
+    spawnBouncyBall(ball.x, ball.y);
+  }
 }
 
 function findNeighbors(b) {
@@ -400,7 +416,7 @@ function resetGame() {
   const dy = -Math.cos(angle) * speed;
   const r = stats.ballRadius;
   balls = [createBall(paddle.x + paddle.w / 2, paddle.y - r, dx, dy)];
-  effectsState.lastHomingSpawnTime = 0; // 새 스테이지 타이머 리셋
+  effectsState.lastSniperSpawnTime = 0; // 새 스테이지 타이머 리셋
   bossStartTime = null;
   initBricks();
   messageEl.textContent = '';
@@ -521,8 +537,8 @@ function dealDamageToBlock(b, dmg) {
 function collideBricks(ball) {
   for (const b of bricks) {
     if (!b.alive) continue;
-    // 아이템: 파괴불가 블록 관통
-    if (effects.indestructiblePierce && b.type === BRICK_TYPE.INDESTRUCTIBLE) continue;
+    // 아이템: 파괴불가 블록 관통 (메인 공만)
+    if (effects.indestructiblePierce && isMainBall(ball) && b.type === BRICK_TYPE.INDESTRUCTIBLE) continue;
     if (!(ball.x + ball.r > b.x && ball.x - ball.r < b.x + b.w &&
           ball.y + ball.r > b.y && ball.y - ball.r < b.y + b.h)) continue;
 
@@ -532,6 +548,15 @@ function collideBricks(ball) {
     // 데미지 처리
     if (b.type === BRICK_TYPE.INDESTRUCTIBLE) {
       playSfx('brickHit');
+      // 파괴불가 블록에 튕겨도 스플래시 데미지는 인접 블록에 적용 (메인 공만)
+      if (isMainBall(ball) && effects.splashRatio > 0) {
+        const splashDmg = Math.floor(stats.ballDamage * effects.splashRatio);
+        for (const n of findNeighbors(b)) {
+          // 갑옷 블록은 스플래시 1 데미지 보장
+          const d = n.type === BRICK_TYPE.ARMOR ? 1 : splashDmg;
+          if (d > 0) dealDamageToBlock(n, d);
+        }
+      }
     } else {
       const isBoss = b.type === BRICK_TYPE.BOSS;
       let onCooldown = false;
@@ -550,28 +575,19 @@ function collideBricks(ball) {
         } else {
           playSfx('brickHit');
         }
-        // 아이템: 스플래시
-        if (effects.splashRatio > 0) {
+        // 아이템: 스플래시 (메인 공만, 갑옷은 1 데미지 보장)
+        if (isMainBall(ball) && effects.splashRatio > 0) {
           const splashDmg = Math.floor(primaryDmg * effects.splashRatio);
-          if (splashDmg > 0) {
-            for (const n of findNeighbors(b)) {
-              dealDamageToBlock(n, splashDmg);
-            }
-          }
-        }
-        // 아이템: 바운시 공 스폰 카운터 (보스 제외)
-        if (!isBoss) {
-          effectsState.bouncyHitCount++;
-          if (effects.bouncyHitsPerSpawn > 0 &&
-              effectsState.bouncyHitCount % effects.bouncyHitsPerSpawn === 0) {
-            spawnBouncyBall(ball.x, ball.y);
+          for (const n of findNeighbors(b)) {
+            const d = n.type === BRICK_TYPE.ARMOR ? 1 : splashDmg;
+            if (d > 0) dealDamageToBlock(n, d);
           }
         }
       }
     }
 
     // 추적 공: 첫 충돌로 소멸
-    if (ball.homing) {
+    if (ball.vanishOnHit) {
       ball.dead = true;
       return;
     }
@@ -605,6 +621,8 @@ function collideBricks(ball) {
       ball.bouncesLeft--;
       if (ball.bouncesLeft <= 0) ball.dead = true;
     }
+    // 튀는 소형 공 스폰 카운터 (블록 충돌도 카운트, 메인 공만)
+    incrementBouncyHitCount(ball);
 
     return;
   }
@@ -615,8 +633,6 @@ function allBricksCleared() {
 }
 
 function updateBall(ball) {
-  if (ball.homing) updateHomingDirection(ball);
-
   ball.x += ball.dx;
   ball.y += ball.dy;
 
@@ -630,6 +646,7 @@ function updateBall(ball) {
       ball.bouncesLeft--;
       if (ball.bouncesLeft <= 0) ball.dead = true;
     }
+    incrementBouncyHitCount(ball);
   }
   if (
     ball.y + ball.r >= paddle.y &&
@@ -654,10 +671,22 @@ function updateBall(ball) {
       // 안전: 회전 후에도 공이 위로 향하게 유지
       if (ball.dy > 0) ball.dy = -ball.dy;
     }
+    // 최대 각도 ±60° (수직 기준) — 너무 수평이면 ±60°로 스냅
+    {
+      const maxAngle = Math.PI / 3;
+      const angleFromVertical = Math.atan2(ball.dx, -ball.dy);
+      if (Math.abs(angleFromVertical) > maxAngle) {
+        const speed = Math.sqrt(ball.dx * ball.dx + ball.dy * ball.dy);
+        const sign = Math.sign(angleFromVertical) || 1;
+        ball.dx = Math.sin(maxAngle * sign) * speed;
+        ball.dy = -Math.cos(maxAngle * sign) * speed;
+      }
+    }
     if (ball.bouncesLeft !== undefined) {
       ball.bouncesLeft--;
       if (ball.bouncesLeft <= 0) ball.dead = true;
     }
+    incrementBouncyHitCount(ball);
     playSfx('paddle');
   }
 
@@ -694,13 +723,13 @@ function update() {
   paddle.dx = paddle.history.length > 0 ? sum / paddle.history.length : 0;
 
   // 아이템: 추적 공 주기 스폰
-  if (effects.homingBallInterval > 0 && bricks.some(b => b.alive && b.type !== BRICK_TYPE.INDESTRUCTIBLE)) {
+  if (effects.sniperInterval > 0 && bricks.some(b => b.alive && b.type !== BRICK_TYPE.INDESTRUCTIBLE)) {
     const now = performance.now();
-    if (effectsState.lastHomingSpawnTime === 0) {
-      effectsState.lastHomingSpawnTime = now;
-    } else if (now - effectsState.lastHomingSpawnTime > effects.homingBallInterval * 1000) {
-      effectsState.lastHomingSpawnTime = now;
-      spawnHomingBall();
+    if (effectsState.lastSniperSpawnTime === 0) {
+      effectsState.lastSniperSpawnTime = now;
+    } else if (now - effectsState.lastSniperSpawnTime > effects.sniperInterval * 1000) {
+      effectsState.lastSniperSpawnTime = now;
+      spawnSniperBall();
     }
   }
 
@@ -782,11 +811,11 @@ function fullReset() {
   effects.indestructiblePierce = false;
   effects.splashRatio = 0;
   effects.bouncyHitsPerSpawn = 0;
-  effects.homingBallInterval = 0;
+  effects.sniperInterval = 0;
   effects.firstWallPierce = false;
   effects.goldMult = 1;
   effectsState.bouncyHitCount = 0;
-  effectsState.lastHomingSpawnTime = 0;
+  effectsState.lastSniperSpawnTime = 0;
   pickedItemIds.clear();
 }
 
@@ -877,7 +906,7 @@ const ITEM_POOL = [
   {
     id: 'bouncy_small',
     name: '튀는 소형 공',
-    desc: '3회 블록 충돌마다 5회 튕기는 소형 공 1개 생성',
+    desc: '3회 충돌(벽·패드·블록)마다 5회 튕기는 소형 공 1개 생성',
     apply: () => { effects.bouncyHitsPerSpawn = 3; }
   },
   {
@@ -902,10 +931,10 @@ const ITEM_POOL = [
     apply: () => { effects.splashRatio = 0.5; }
   },
   {
-    id: 'homing',
-    name: '추적 미사일',
-    desc: '5초마다 가까운 블록을 향해 돌진하는 작은 공 1개 (충돌 시 소멸)',
-    apply: () => { effects.homingBallInterval = 5; }
+    id: 'sniper',
+    name: '저격',
+    desc: '5초마다 메인 공 위치에서 가장 가까운 블록 방향으로 직선 발사, 메인 공 2배 속도 (충돌 시 소멸)',
+    apply: () => { effects.sniperInterval = 5; }
   },
   {
     id: 'speed_gold',
@@ -934,7 +963,7 @@ const ITEM_POOL = [
 ];
 
 let currentRewards = [];
-let rewardPicked = false;
+let selectedRewardIdx = null;
 const pickedItemIds = new Set();
 
 function rollRandomRewards() {
@@ -952,34 +981,39 @@ function rollRandomRewards() {
 
 function setupShopRewards() {
   currentRewards = rollRandomRewards();
-  rewardPicked = false;
+  selectedRewardIdx = null;
   for (let i = 0; i < 3; i++) {
     const card = rewardCards[i];
     const item = currentRewards[i];
     card.querySelector('.reward-name').textContent = item.name;
     card.querySelector('.reward-desc').textContent = item.desc;
     card.classList.remove('picked');
-    // 빈 슬롯(placeholder)은 클릭 불가
+    // 빈 슬롯(placeholder)만 클릭 불가
     card.disabled = (typeof item.apply !== 'function');
   }
 }
 
+// 카드 클릭은 선택만 표시 (다른 카드 다시 클릭하면 선택 변경 가능)
+// 실제 효과는 "다음 스테이지" 클릭 시 closeShopToNextStage()에서 확정 적용
 function pickReward(idx) {
-  if (rewardPicked) return;
   if (idx < 0 || idx >= currentRewards.length) return;
   const item = currentRewards[idx];
-  if (typeof item.apply !== 'function') return; // placeholder 보호
-  rewardPicked = true;
+  if (typeof item.apply !== 'function') return; // placeholder
+  selectedRewardIdx = idx;
+  for (let i = 0; i < 3; i++) {
+    rewardCards[i].classList.toggle('picked', i === idx);
+  }
+}
+
+// 다음 스테이지 진입 시점에 선택된 아이템 효과 적용
+function commitSelectedReward() {
+  if (selectedRewardIdx === null) return;
+  const item = currentRewards[selectedRewardIdx];
+  if (!item || typeof item.apply !== 'function') return;
   item.apply();
   pickedItemIds.add(item.id);
-  // 선택된 카드는 강조, 나머지는 비활성화
-  for (let i = 0; i < 3; i++) {
-    const card = rewardCards[i];
-    if (i === idx) card.classList.add('picked');
-    card.disabled = true;
-  }
+  selectedRewardIdx = null;
   updateStatsDisplay();
-  updateShopUI();
 }
 
 function openShop() {
@@ -991,6 +1025,8 @@ function openShop() {
 }
 
 function closeShopToNextStage() {
+  // 상점에서 선택해둔 아이템 효과를 이 시점에 확정 적용
+  commitSelectedReward();
   shopOverlay.classList.add('hidden');
   resetGame();
   // 새 스테이지도 메인 게임 시작과 동일하게 가운데 "시작" 버튼으로 진입
