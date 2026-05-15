@@ -87,28 +87,47 @@
         </div>
         <div id="shopOverlay" class="overlay hidden">
           <div class="shop-modal">
-            <h2>상점 (골드: <span id="shop-gold">0</span>)</h2>
-            <div class="shop-item">
-              <span>공 데미지 +1</span>
-              <button id="buy-damage" class="buy-btn"><span id="price-damage">5</span> G</button>
+            <div class="shop-left">
+              <h2>상점 (골드: <span id="shop-gold">0</span>)</h2>
+              <div class="shop-item">
+                <span>공 데미지 +1</span>
+                <button id="buy-damage" class="buy-btn"><span id="price-damage">5</span> G</button>
+              </div>
+              <div class="shop-item">
+                <span>공 크기 +2</span>
+                <button id="buy-radius" class="buy-btn"><span id="price-radius">5</span> G</button>
+              </div>
+              <div class="shop-item">
+                <span>패드 크기 +20</span>
+                <button id="buy-paddle" class="buy-btn"><span id="price-paddle">5</span> G</button>
+              </div>
+              <div class="shop-item">
+                <span>황금 확률 +10%</span>
+                <button id="buy-goldchance" class="buy-btn"><span id="price-goldchance">5</span> G</button>
+              </div>
+              <div class="shop-item">
+                <span>보호막</span>
+                <button id="buy-shield" class="buy-btn"><span id="price-shield">20</span> G</button>
+              </div>
+              <button id="nextStageBtn">다음 스테이지</button>
             </div>
-            <div class="shop-item">
-              <span>공 크기 +2</span>
-              <button id="buy-radius" class="buy-btn"><span id="price-radius">5</span> G</button>
+            <div class="shop-right" id="rewardSection">
+              <h3>무작위 아이템</h3>
+              <div class="reward-cards">
+                <button type="button" class="reward-card" data-slot="0">
+                  <span class="reward-name">?</span>
+                  <span class="reward-desc">(준비 중)</span>
+                </button>
+                <button type="button" class="reward-card" data-slot="1">
+                  <span class="reward-name">?</span>
+                  <span class="reward-desc">(준비 중)</span>
+                </button>
+                <button type="button" class="reward-card" data-slot="2">
+                  <span class="reward-name">?</span>
+                  <span class="reward-desc">(준비 중)</span>
+                </button>
+              </div>
             </div>
-            <div class="shop-item">
-              <span>패드 크기 +20</span>
-              <button id="buy-paddle" class="buy-btn"><span id="price-paddle">5</span> G</button>
-            </div>
-            <div class="shop-item">
-              <span>황금 확률 +10%</span>
-              <button id="buy-goldchance" class="buy-btn"><span id="price-goldchance">5</span> G</button>
-            </div>
-            <div class="shop-item">
-              <span>보호막</span>
-              <button id="buy-shield" class="buy-btn"><span id="price-shield">20</span> G</button>
-            </div>
-            <button id="nextStageBtn">다음 스테이지</button>
           </div>
         </div>
       </div>

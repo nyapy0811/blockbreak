@@ -46,6 +46,7 @@ const legendArmorEl = document.getElementById('legend-armor');
 const legendIndestructibleEl = document.getElementById('legend-indestructible');
 const legendHardenedEl = document.getElementById('legend-hardened');
 const bgmAudio = document.getElementById('bgmAudio');
+const rewardCards = Array.from(document.querySelectorAll('.reward-card'));
 
 // 논리 캔버스 크기 (좌표계 기준)
 const W = 800;
@@ -83,6 +84,23 @@ const PADDLE_SPIN_FACTOR = 0.05;          // rad / (px/frame)
 const PADDLE_SPIN_MAX_ANGLE = Math.PI / 4; // 보정 상한 ±45°
 const PADDLE_HISTORY_WINDOW_MS = 100;     // 평균 속도 산출 구간
 
+// 공 기본 속도 (px/frame@60). stats.ballSpeed로 런타임 조정 가능
+const BASE_BALL_SPEED = Math.sqrt(32);
+
+// 아이템 효과 (수동/패시브 패시브 플래그/멀티플라이어)
+const effects = {
+  indestructiblePierce: false,  // 파괴불가 블록 관통
+  splashRatio: 0,               // 인접 블록 50% 스플래시 (값 0.5 등)
+  bouncyHitsPerSpawn: 0,        // N회 블록 충돌마다 작은 튀는 공 1개 (0이면 비활성)
+  homingBallInterval: 0,        // 초 단위 추적 공 생성 주기 (0이면 비활성)
+  firstWallPierce: false,       // 처음 벽 충돌 전까지 블록 관통
+  goldMult: 1                   // 골드 획득 배수
+};
+const effectsState = {
+  bouncyHitCount: 0,
+  lastHomingSpawnTime: 0
+};
+
 
 const shopState = {
   damageBuys: 0,
@@ -94,6 +112,7 @@ const shopState = {
 const stats = {
   ballDamage: 1,
   ballRadius: 8,
+  ballSpeed: BASE_BALL_SPEED,
   goldChance: 0
 };
 
@@ -173,7 +192,75 @@ const BRICK_TYPE = {
 };
 
 function createBall(x, y, dx, dy) {
-  return { x, y, r: stats.ballRadius, dx, dy, color: settings.ballColor };
+  const ball = { x, y, r: stats.ballRadius, dx, dy, color: settings.ballColor };
+  if (effects.firstWallPierce) ball.pierce = true;
+  return ball;
+}
+
+// 작은 튀는 공: 5회 바운스 후 소멸
+function spawnBouncyBall(x, y) {
+  const speed = stats.ballSpeed;
+  const angle = Math.random() * 2 * Math.PI;
+  const ball = {
+    x, y,
+    r: stats.ballRadius * 0.6,
+    dx: Math.cos(angle) * speed,
+    dy: Math.sin(angle) * speed,
+    color: settings.ballColor,
+    bouncesLeft: 5
+  };
+  balls.push(ball);
+}
+
+// 추적 공: 가장 가까운 블록을 향해 이동, 첫 충돌 시 소멸
+function spawnHomingBall() {
+  const speed = stats.ballSpeed;
+  const ball = {
+    x: paddle.x + paddle.w / 2,
+    y: paddle.y - 20,
+    r: stats.ballRadius * 0.6,
+    dx: 0, dy: -speed,
+    color: settings.ballColor,
+    homing: true
+  };
+  balls.push(ball);
+}
+
+function findNearestBrick(ball) {
+  let best = null, bestD = Infinity;
+  for (const b of bricks) {
+    if (!b.alive) continue;
+    if (b.type === BRICK_TYPE.INDESTRUCTIBLE && !effects.indestructiblePierce) continue;
+    const cx = b.x + b.w / 2;
+    const cy = b.y + b.h / 2;
+    const dx = cx - ball.x;
+    const dy = cy - ball.y;
+    const d = dx * dx + dy * dy;
+    if (d < bestD) { bestD = d; best = b; }
+  }
+  return best;
+}
+
+function updateHomingDirection(ball) {
+  const t = findNearestBrick(ball);
+  if (!t) return;
+  const dx = (t.x + t.w / 2) - ball.x;
+  const dy = (t.y + t.h / 2) - ball.y;
+  const dist = Math.sqrt(dx * dx + dy * dy);
+  if (dist <= 0) return;
+  const speed = Math.sqrt(ball.dx * ball.dx + ball.dy * ball.dy) || stats.ballSpeed;
+  ball.dx = dx / dist * speed;
+  ball.dy = dy / dist * speed;
+}
+
+function findNeighbors(b) {
+  return bricks.filter(o => {
+    if (o === b || !o.alive) return false;
+    const dx = Math.abs(o.x - b.x);
+    const dy = Math.abs(o.y - b.y);
+    return (dy < 1 && dx > 0 && dx < b.w * 1.5) ||
+           (dx < 1 && dy > 0 && dy < b.h * 1.5);
+  });
 }
 
 function shuffleInPlace(arr) {
@@ -307,12 +394,13 @@ function resetGame() {
   paddle.dx = 0;
   paddle.lastFrameX = paddle.x;
   paddle.lastFrameTime = 0;
-  const speed = Math.sqrt(32);
-  const angle = (Math.random() * 120 - 60) * Math.PI / 180;
+  const speed = stats.ballSpeed;
+  const angle = (Math.random() * 60 - 30) * Math.PI / 180;
   const dx = Math.sin(angle) * speed;
   const dy = -Math.cos(angle) * speed;
   const r = stats.ballRadius;
   balls = [createBall(paddle.x + paddle.w / 2, paddle.y - r, dx, dy)];
+  effectsState.lastHomingSpawnTime = 0; // 새 스테이지 타이머 리셋
   bossStartTime = null;
   initBricks();
   messageEl.textContent = '';
@@ -409,75 +497,116 @@ function drawBricks() {
   }
 }
 
+// 블록에 데미지를 적용 (파괴 시 점수·골드 처리). 파괴되면 true 반환.
+function dealDamageToBlock(b, dmg) {
+  if (!b.alive || b.type === BRICK_TYPE.INDESTRUCTIBLE) return false;
+  if (b.type === BRICK_TYPE.ARMOR) dmg = Math.min(dmg, 1);
+  dmg = Math.min(dmg, b.hp);
+  if (dmg <= 0) return false;
+  b.hp -= dmg;
+  if (b.hp <= 0) {
+    b.alive = false;
+    score += currentStage;
+    if (b.type !== BRICK_TYPE.BOSS) {
+      const baseGold = b.trait === 'gold' ? GOLD_TRAIT_REWARD : 1;
+      gold += Math.floor(baseGold * effects.goldMult);
+      updateStatsDisplay();
+    }
+    updateScoreDisplay();
+    return true;
+  }
+  return false;
+}
+
 function collideBricks(ball) {
   for (const b of bricks) {
     if (!b.alive) continue;
-    if (
-      ball.x + ball.r > b.x &&
-      ball.x - ball.r < b.x + b.w &&
-      ball.y + ball.r > b.y &&
-      ball.y - ball.r < b.y + b.h
-    ) {
-      const overlapLeft = (ball.x + ball.r) - b.x;
-      const overlapRight = (b.x + b.w) - (ball.x - ball.r);
-      const overlapTop = (ball.y + ball.r) - b.y;
-      const overlapBottom = (b.y + b.h) - (ball.y - ball.r);
-      const minOverlap = Math.min(overlapLeft, overlapRight, overlapTop, overlapBottom);
+    // 아이템: 파괴불가 블록 관통
+    if (effects.indestructiblePierce && b.type === BRICK_TYPE.INDESTRUCTIBLE) continue;
+    if (!(ball.x + ball.r > b.x && ball.x - ball.r < b.x + b.w &&
+          ball.y + ball.r > b.y && ball.y - ball.r < b.y + b.h)) continue;
 
-      if (b.type !== BRICK_TYPE.INDESTRUCTIBLE) {
-        const isBoss = b.type === BRICK_TYPE.BOSS;
-        // 보스 피격 쿨다운: 100ms 이내 재충돌은 데미지 무시 (튕김·소리만)
-        let onCooldown = false;
-        if (isBoss) {
-          const now = performance.now();
-          if (now - b.lastHitTime < BOSS_HIT_COOLDOWN_MS) onCooldown = true;
-          else b.lastHitTime = now;
-        }
-        if (onCooldown) {
-          playSfx('brickHit');
+    // 돌격 관통: 데미지·튕김·소리 없이 통과
+    if (ball.pierce) continue;
+
+    // 데미지 처리
+    if (b.type === BRICK_TYPE.INDESTRUCTIBLE) {
+      playSfx('brickHit');
+    } else {
+      const isBoss = b.type === BRICK_TYPE.BOSS;
+      let onCooldown = false;
+      if (isBoss) {
+        const now = performance.now();
+        if (now - b.lastHitTime < BOSS_HIT_COOLDOWN_MS) onCooldown = true;
+        else b.lastHitTime = now;
+      }
+      if (onCooldown) {
+        playSfx('brickHit');
+      } else {
+        const primaryDmg = b.type === BRICK_TYPE.ARMOR ? 1 : stats.ballDamage;
+        const destroyed = dealDamageToBlock(b, primaryDmg);
+        if (destroyed) {
+          playSfx(!isBoss && b.trait === 'gold' ? 'goldBrick' : 'brickDestroy');
         } else {
-          let dmg = b.type === BRICK_TYPE.ARMOR ? 1 : stats.ballDamage;
-          dmg = Math.min(dmg, b.hp);
-          b.hp -= dmg;
-          if (b.hp <= 0) {
-            b.alive = false;
-            score += currentStage;
-            if (!isBoss) {
-              gold += b.trait === 'gold' ? GOLD_TRAIT_REWARD : 1;
-              updateStatsDisplay();
-              playSfx(b.trait === 'gold' ? 'goldBrick' : 'brickDestroy');
-            } else {
-              playSfx('brickDestroy');
+          playSfx('brickHit');
+        }
+        // 아이템: 스플래시
+        if (effects.splashRatio > 0) {
+          const splashDmg = Math.floor(primaryDmg * effects.splashRatio);
+          if (splashDmg > 0) {
+            for (const n of findNeighbors(b)) {
+              dealDamageToBlock(n, splashDmg);
             }
-            updateScoreDisplay();
-          } else {
-            playSfx('brickHit');
           }
         }
-      } else {
-        playSfx('brickHit');
+        // 아이템: 바운시 공 스폰 카운터 (보스 제외)
+        if (!isBoss) {
+          effectsState.bouncyHitCount++;
+          if (effects.bouncyHitsPerSpawn > 0 &&
+              effectsState.bouncyHitCount % effects.bouncyHitsPerSpawn === 0) {
+            spawnBouncyBall(ball.x, ball.y);
+          }
+        }
       }
+    }
 
-      if (minOverlap === overlapLeft) {
-        const tx = b.x - ball.r;
-        if (tx < ball.r) { ball.x = b.x + b.w + ball.r; ball.dx =  Math.abs(ball.dx); }
-        else             { ball.x = tx;                  ball.dx = -Math.abs(ball.dx); }
-      } else if (minOverlap === overlapRight) {
-        const tx = b.x + b.w + ball.r;
-        if (tx > W - ball.r) { ball.x = b.x - ball.r; ball.dx = -Math.abs(ball.dx); }
-        else                 { ball.x = tx;            ball.dx =  Math.abs(ball.dx); }
-      } else if (minOverlap === overlapTop) {
-        const ty = b.y - ball.r;
-        if (ty < ball.r) { ball.y = b.y + b.h + ball.r; ball.dy =  Math.abs(ball.dy); }
-        else             { ball.y = ty;                   ball.dy = -Math.abs(ball.dy); }
-      } else {
-        const ty = b.y + b.h + ball.r;
-        if (ty > H - ball.r) { ball.y = b.y - ball.r; ball.dy = -Math.abs(ball.dy); }
-        else                 { ball.y = ty;            ball.dy =  Math.abs(ball.dy); }
-      }
-
+    // 추적 공: 첫 충돌로 소멸
+    if (ball.homing) {
+      ball.dead = true;
       return;
     }
+
+    // 위치 보정 + 튕김 (4면 + 보스 벽 회피 분기)
+    const overlapLeft = (ball.x + ball.r) - b.x;
+    const overlapRight = (b.x + b.w) - (ball.x - ball.r);
+    const overlapTop = (ball.y + ball.r) - b.y;
+    const overlapBottom = (b.y + b.h) - (ball.y - ball.r);
+    const minOverlap = Math.min(overlapLeft, overlapRight, overlapTop, overlapBottom);
+    if (minOverlap === overlapLeft) {
+      const tx = b.x - ball.r;
+      if (tx < ball.r) { ball.x = b.x + b.w + ball.r; ball.dx =  Math.abs(ball.dx); }
+      else             { ball.x = tx;                  ball.dx = -Math.abs(ball.dx); }
+    } else if (minOverlap === overlapRight) {
+      const tx = b.x + b.w + ball.r;
+      if (tx > W - ball.r) { ball.x = b.x - ball.r; ball.dx = -Math.abs(ball.dx); }
+      else                 { ball.x = tx;            ball.dx =  Math.abs(ball.dx); }
+    } else if (minOverlap === overlapTop) {
+      const ty = b.y - ball.r;
+      if (ty < ball.r) { ball.y = b.y + b.h + ball.r; ball.dy =  Math.abs(ball.dy); }
+      else             { ball.y = ty;                   ball.dy = -Math.abs(ball.dy); }
+    } else {
+      const ty = b.y + b.h + ball.r;
+      if (ty > H - ball.r) { ball.y = b.y - ball.r; ball.dy = -Math.abs(ball.dy); }
+      else                 { ball.y = ty;            ball.dy =  Math.abs(ball.dy); }
+    }
+
+    // 작은 공 바운스 카운트
+    if (ball.bouncesLeft !== undefined) {
+      ball.bouncesLeft--;
+      if (ball.bouncesLeft <= 0) ball.dead = true;
+    }
+
+    return;
   }
 }
 
@@ -486,12 +615,22 @@ function allBricksCleared() {
 }
 
 function updateBall(ball) {
+  if (ball.homing) updateHomingDirection(ball);
+
   ball.x += ball.dx;
   ball.y += ball.dy;
 
-  if (ball.x - ball.r < 0) { ball.x = ball.r;     ball.dx =  Math.abs(ball.dx); }
-  if (ball.x + ball.r > W) { ball.x = W - ball.r; ball.dx = -Math.abs(ball.dx); }
-  if (ball.y - ball.r < 0) { ball.y = ball.r;     ball.dy =  Math.abs(ball.dy); }
+  let wallHit = false;
+  if (ball.x - ball.r < 0) { ball.x = ball.r;     ball.dx =  Math.abs(ball.dx); wallHit = true; }
+  if (ball.x + ball.r > W) { ball.x = W - ball.r; ball.dx = -Math.abs(ball.dx); wallHit = true; }
+  if (ball.y - ball.r < 0) { ball.y = ball.r;     ball.dy =  Math.abs(ball.dy); wallHit = true; }
+  if (wallHit) {
+    if (ball.pierce) ball.pierce = false;
+    if (ball.bouncesLeft !== undefined) {
+      ball.bouncesLeft--;
+      if (ball.bouncesLeft <= 0) ball.dead = true;
+    }
+  }
   if (
     ball.y + ball.r >= paddle.y &&
     ball.y + ball.r <= paddle.y + paddle.h &&
@@ -514,6 +653,10 @@ function updateBall(ball) {
       ball.dy = ndy;
       // 안전: 회전 후에도 공이 위로 향하게 유지
       if (ball.dy > 0) ball.dy = -ball.dy;
+    }
+    if (ball.bouncesLeft !== undefined) {
+      ball.bouncesLeft--;
+      if (ball.bouncesLeft <= 0) ball.dead = true;
     }
     playSfx('paddle');
   }
@@ -550,6 +693,17 @@ function update() {
   for (const s of paddle.history) sum += s.v;
   paddle.dx = paddle.history.length > 0 ? sum / paddle.history.length : 0;
 
+  // 아이템: 추적 공 주기 스폰
+  if (effects.homingBallInterval > 0 && bricks.some(b => b.alive && b.type !== BRICK_TYPE.INDESTRUCTIBLE)) {
+    const now = performance.now();
+    if (effectsState.lastHomingSpawnTime === 0) {
+      effectsState.lastHomingSpawnTime = now;
+    } else if (now - effectsState.lastHomingSpawnTime > effects.homingBallInterval * 1000) {
+      effectsState.lastHomingSpawnTime = now;
+      spawnHomingBall();
+    }
+  }
+
   for (const ball of balls) {
     updateBall(ball);
   }
@@ -569,7 +723,10 @@ function update() {
       }
     }, 1500);
   }
-  balls = balls.filter(ball => ball.y - ball.r <= H);
+  // 떨어진 공 + 아이템 효과로 소멸된 공 제거
+  // 주: 보호막 처리는 마지막 "주 공"이 1개일 때만 작동하므로,
+  //     추적/바운시 보조 공은 보호막 비활성 조건과 무관하게 떨어지면 제거됨
+  balls = balls.filter(ball => !ball.dead && ball.y - ball.r <= H);
 
   if (balls.length === 0) {
     gameOver(false);
@@ -613,6 +770,7 @@ function fullReset() {
   hasShield = false;
   stats.ballDamage = 1;
   stats.ballRadius = 8;
+  stats.ballSpeed = BASE_BALL_SPEED;
   stats.goldChance = 0;
   paddle.w = 100;
   shopState.damageBuys = 0;
@@ -620,6 +778,16 @@ function fullReset() {
   shopState.paddleBuys = 0;
   shopState.goldchanceBuys = 0;
   bossStartTime = null;
+  // 아이템 효과 초기화
+  effects.indestructiblePierce = false;
+  effects.splashRatio = 0;
+  effects.bouncyHitsPerSpawn = 0;
+  effects.homingBallInterval = 0;
+  effects.firstWallPierce = false;
+  effects.goldMult = 1;
+  effectsState.bouncyHitCount = 0;
+  effectsState.lastHomingSpawnTime = 0;
+  pickedItemIds.clear();
 }
 
 function gameOver(won) {
@@ -703,10 +871,122 @@ function buy(kind) {
   updateShopUI();
 }
 
+// 무작위 아이템 풀
+// 항목 형식: { id: string, name: string, desc: string, apply: () => void }
+const ITEM_POOL = [
+  {
+    id: 'bouncy_small',
+    name: '튀는 소형 공',
+    desc: '3회 블록 충돌마다 5회 튕기는 소형 공 1개 생성',
+    apply: () => { effects.bouncyHitsPerSpawn = 3; }
+  },
+  {
+    id: 'bigger_stronger',
+    name: '강화 공',
+    desc: '공 크기 +30%, 데미지 +100%',
+    apply: () => {
+      stats.ballRadius *= 1.3;
+      stats.ballDamage *= 2;
+    }
+  },
+  {
+    id: 'indest_pierce',
+    name: '파괴자',
+    desc: '파괴 불가 블록 관통',
+    apply: () => { effects.indestructiblePierce = true; }
+  },
+  {
+    id: 'splash',
+    name: '폭발',
+    desc: '주변 블록 50% 스플래시 데미지',
+    apply: () => { effects.splashRatio = 0.5; }
+  },
+  {
+    id: 'homing',
+    name: '추적 미사일',
+    desc: '5초마다 가까운 블록을 향해 돌진하는 작은 공 1개 (충돌 시 소멸)',
+    apply: () => { effects.homingBallInterval = 5; }
+  },
+  {
+    id: 'speed_gold',
+    name: '쾌속',
+    desc: '공 속도 +100%, 골드 +50%',
+    apply: () => {
+      stats.ballSpeed *= 2;
+      effects.goldMult += 0.5;
+    }
+  },
+  {
+    id: 'pierce_start',
+    name: '돌격',
+    desc: '벽에 처음 부딪히기 전까지 블록 통과 (데미지 없음)',
+    apply: () => { effects.firstWallPierce = true; }
+  },
+  {
+    id: 'small_paddle',
+    name: '도전',
+    desc: '패드 크기 -50%, 골드 +100%',
+    apply: () => {
+      paddle.w *= 0.5;
+      effects.goldMult += 1;
+    }
+  }
+];
+
+let currentRewards = [];
+let rewardPicked = false;
+const pickedItemIds = new Set();
+
+function rollRandomRewards() {
+  // 이미 고른 아이템은 풀에서 제외
+  const available = ITEM_POOL.filter(i => !pickedItemIds.has(i.id));
+  const shuffled = available.slice();
+  shuffleInPlace(shuffled);
+  const result = shuffled.slice(0, 3);
+  // 사용 가능한 아이템이 3개 미만이면 나머지는 빈 슬롯 placeholder
+  while (result.length < 3) {
+    result.push({ id: `__empty_${result.length}`, name: '?', desc: '(없음)' });
+  }
+  return result;
+}
+
+function setupShopRewards() {
+  currentRewards = rollRandomRewards();
+  rewardPicked = false;
+  for (let i = 0; i < 3; i++) {
+    const card = rewardCards[i];
+    const item = currentRewards[i];
+    card.querySelector('.reward-name').textContent = item.name;
+    card.querySelector('.reward-desc').textContent = item.desc;
+    card.classList.remove('picked');
+    // 빈 슬롯(placeholder)은 클릭 불가
+    card.disabled = (typeof item.apply !== 'function');
+  }
+}
+
+function pickReward(idx) {
+  if (rewardPicked) return;
+  if (idx < 0 || idx >= currentRewards.length) return;
+  const item = currentRewards[idx];
+  if (typeof item.apply !== 'function') return; // placeholder 보호
+  rewardPicked = true;
+  item.apply();
+  pickedItemIds.add(item.id);
+  // 선택된 카드는 강조, 나머지는 비활성화
+  for (let i = 0; i < 3; i++) {
+    const card = rewardCards[i];
+    if (i === idx) card.classList.add('picked');
+    card.disabled = true;
+  }
+  updateStatsDisplay();
+  updateShopUI();
+}
+
 function openShop() {
   gameState = 'shop';
   confirmOverlay.classList.add('hidden');
   shopOverlay.classList.remove('hidden');
+  setupShopRewards();
   updateShopUI();
 }
 
@@ -734,6 +1014,10 @@ buyRadiusBtn.addEventListener('click', () => buy('radius'));
 buyPaddleBtn.addEventListener('click', () => buy('paddle'));
 buyGoldChanceBtn.addEventListener('click', () => buy('goldchance'));
 buyShieldBtn.addEventListener('click', () => buy('shield'));
+
+rewardCards.forEach((card, i) => {
+  card.addEventListener('click', () => pickReward(i));
+});
 
 function returnToStart() {
   winOverlay.classList.add('hidden');
@@ -980,7 +1264,7 @@ testWinBtn.addEventListener('click', () => {
     b.alive = false;
     score += currentStage;
     if (b.type !== BRICK_TYPE.BOSS) {
-      gold += b.trait === 'gold' ? GOLD_TRAIT_REWARD : 1;
+      gold += Math.floor((b.trait === 'gold' ? GOLD_TRAIT_REWARD : 1) * effects.goldMult);
     }
   }
   updateScoreDisplay();
