@@ -84,8 +84,10 @@ const PADDLE_SPIN_FACTOR = 0.05;          // rad / (px/frame)
 const PADDLE_SPIN_MAX_ANGLE = Math.PI / 4; // 보정 상한 ±45°
 const PADDLE_HISTORY_WINDOW_MS = 100;     // 평균 속도 산출 구간
 
-// 공 기본 속도 (px/frame@60). stats.ballSpeed로 런타임 조정 가능
-const BASE_BALL_SPEED = Math.sqrt(32);
+// 공 속도: 스테이지 기반 (1스테이지 3, 매 스테이지 +1) — resetGame()에서 stats.ballSpeed에 계산값 대입
+function stageBallSpeed() {
+  return 2 + currentStage;
+}
 
 // 아이템 효과 (수동/패시브 패시브 플래그/멀티플라이어)
 const effects = {
@@ -94,7 +96,8 @@ const effects = {
   bouncyHitsPerSpawn: 0,        // N회 블록 충돌마다 작은 튀는 공 1개 (0이면 비활성)
   sniperInterval: 0,            // 초 단위 저격 공 발사 주기 (0이면 비활성)
   firstWallPierce: false,       // 처음 벽 충돌 전까지 블록 관통
-  goldMult: 1                   // 골드 획득 배수
+  goldMult: 1,                  // 골드 획득 배수
+  ballSpeedMult: 1              // 공 속도 배수 (쾌속 아이템 적용)
 };
 const effectsState = {
   bouncyHitCount: 0,
@@ -112,7 +115,7 @@ const shopState = {
 const stats = {
   ballDamage: 1,
   ballRadius: 8,
-  ballSpeed: BASE_BALL_SPEED,
+  ballSpeed: 3,   // 스테이지 1 기본값. resetGame()에서 매 스테이지마다 재계산
   goldChance: 0
 };
 
@@ -410,6 +413,8 @@ function resetGame() {
   paddle.dx = 0;
   paddle.lastFrameX = paddle.x;
   paddle.lastFrameTime = 0;
+  // 스테이지 기반 공 속도 재계산 (쾌속 아이템 배수 반영)
+  stats.ballSpeed = stageBallSpeed() * effects.ballSpeedMult;
   const speed = stats.ballSpeed;
   const angle = (Math.random() * 60 - 30) * Math.PI / 180;
   const dx = Math.sin(angle) * speed;
@@ -739,22 +744,24 @@ function update() {
   if (currentStage === MAX_STAGE) {
     updateBoss();
   }
-  if (hasShield && balls.length === 1 && balls[0].y - balls[0].r > H) {
-    balls[0].y = H - balls[0].r;
-    balls[0].dy = -Math.abs(balls[0].dy);
-    hasShield = false;
-    messageEl.textContent = '보호막 발동!';
-    playSfx('shield');
-    updateStatsDisplay();
-    setTimeout(() => {
-      if (messageEl.textContent === '보호막 발동!') {
-        messageEl.textContent = '';
-      }
-    }, 1500);
+  // 보호막: 메인 공만 튕겨냄 (보조 공이 있어도 활성). 보조 공은 떨어지면 그냥 제거.
+  if (hasShield) {
+    const mainBall = balls.find(isMainBall);
+    if (mainBall && mainBall.y - mainBall.r > H) {
+      mainBall.y = H - mainBall.r;
+      mainBall.dy = -Math.abs(mainBall.dy);
+      hasShield = false;
+      messageEl.textContent = '보호막 발동!';
+      playSfx('shield');
+      updateStatsDisplay();
+      setTimeout(() => {
+        if (messageEl.textContent === '보호막 발동!') {
+          messageEl.textContent = '';
+        }
+      }, 1500);
+    }
   }
   // 떨어진 공 + 아이템 효과로 소멸된 공 제거
-  // 주: 보호막 처리는 마지막 "주 공"이 1개일 때만 작동하므로,
-  //     추적/바운시 보조 공은 보호막 비활성 조건과 무관하게 떨어지면 제거됨
   balls = balls.filter(ball => !ball.dead && ball.y - ball.r <= H);
 
   if (balls.length === 0) {
@@ -799,7 +806,7 @@ function fullReset() {
   hasShield = false;
   stats.ballDamage = 1;
   stats.ballRadius = 8;
-  stats.ballSpeed = BASE_BALL_SPEED;
+  stats.ballSpeed = 3;
   stats.goldChance = 0;
   paddle.w = 100;
   shopState.damageBuys = 0;
@@ -814,6 +821,7 @@ function fullReset() {
   effects.sniperInterval = 0;
   effects.firstWallPierce = false;
   effects.goldMult = 1;
+  effects.ballSpeedMult = 1;
   effectsState.bouncyHitCount = 0;
   effectsState.lastSniperSpawnTime = 0;
   pickedItemIds.clear();
@@ -941,7 +949,7 @@ const ITEM_POOL = [
     name: '쾌속',
     desc: '공 속도 +100%, 골드 +50%',
     apply: () => {
-      stats.ballSpeed *= 2;
+      effects.ballSpeedMult *= 2;
       effects.goldMult += 0.5;
     }
   },
