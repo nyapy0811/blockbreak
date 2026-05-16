@@ -179,11 +179,11 @@ const paddle = {
 const brick = {
   rows: 4,
   cols: 8,
-  w: 60,
-  h: 30,
+  w: 75,
+  h: 50,
   padding: 0,
   offsetTop: 50,
-  offsetLeft: 160
+  offsetLeft: 100
 };
 
 const BRICK_TYPE = {

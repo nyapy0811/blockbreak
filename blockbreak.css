@@ -317,7 +317,10 @@ body {
   justify-content: center;
 }
 
-.preset-btn {
+.preset-btn,
+.bg-preset-btn,
+.bgm-toggle-btn,
+.sfx-toggle-btn {
   padding: 6px 14px;
   font-size: 13px;
   cursor: pointer;
@@ -326,32 +329,13 @@ body {
   border-radius: 4px;
 }
 
-.preset-btn.active {
+.preset-btn.active,
+.bg-preset-btn.active,
+.bgm-toggle-btn.active,
+.sfx-toggle-btn.active {
   border-color: #222;
   background: #f4f4f4;
   font-weight: bold;
-}
-
-/* BGM·효과음 ON/OFF 토글: 켜기는 녹색, 끄기는 회색으로 명확히 구분 */
-.bgm-toggle-btn.active[data-bgm="on"],
-.sfx-toggle-btn.active[data-sfx="on"] {
-  background: #2e7d32;
-  border-color: #1b5e20;
-  color: #fff;
-}
-
-.bgm-toggle-btn.active[data-bgm="off"],
-.sfx-toggle-btn.active[data-sfx="off"] {
-  background: #6c6c6c;
-  border-color: #424242;
-  color: #fff;
-}
-
-/* 배경 프리셋 활성 상태도 동일하게 녹색으로 강조 */
-.bg-preset-btn.active {
-  background: #2e7d32;
-  border-color: #1b5e20;
-  color: #fff;
 }
 
 .legend {
