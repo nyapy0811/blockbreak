@@ -74,8 +74,9 @@ let gameState = 'ready';
 let bossStartTime = null;
 const BOSS_SPEED = 4;
 const BOSS_TIME_LIMIT_SEC = 200;
-const BOSS_W = 180;
-const BOSS_H = 90;
+// 보스 크기: 스테이지 4 블록(75×33.33) 기준 1×2 = 150×33.33
+const BOSS_W = (600 / 8) * 2;
+const BOSS_H = 200 / 6;
 const BOSS_HP = 150;
 const BOSS_HIT_COOLDOWN_MS = 100;
 
@@ -311,9 +312,14 @@ function initBricks() {
 
   if (currentStage === MAX_STAGE) {
     const angle = Math.random() * 2 * Math.PI;
+    const bossX = (W - BOSS_W) / 2;
+    const bossY = 50;
+    const indestW = 600 / 8; // 스테이지 4 블록 너비 (75)
+    const indestH = BOSS_H;  // 보스 한 행과 같은 높이
+    // 보스 블록 (1×2 스테이지 4 블록)
     bricks.push({
-      x: (W - BOSS_W) / 2,
-      y: 50,
+      x: bossX,
+      y: bossY,
       w: BOSS_W,
       h: BOSS_H,
       hp: BOSS_HP,
@@ -323,10 +329,41 @@ function initBricks() {
       type: BRICK_TYPE.BOSS,
       dx: Math.cos(angle) * BOSS_SPEED,
       dy: Math.sin(angle) * BOSS_SPEED,
-      lastHitTime: 0
+      lastHitTime: 0,
+      formationH: BOSS_H + indestH  // 보스+부속 타일 전체 높이 (이동 범위 계산용)
     });
+    // 보스 아래 부속 파괴 불가 타일 2개 (보스에 부착되어 함께 이동)
+    for (let i = 0; i < 2; i++) {
+      bricks.push({
+        x: bossX + i * indestW,
+        y: bossY + BOSS_H,
+        w: indestW,
+        h: indestH,
+        hp: Infinity,
+        maxHp: Infinity,
+        alive: true,
+        color: settings.indestructibleColor,
+        type: BRICK_TYPE.INDESTRUCTIBLE,
+        bossAttached: true,
+        bossOffsetX: i * indestW,
+        bossOffsetY: BOSS_H
+      });
+    }
     return;
   }
+
+  // 스테이지별 격자 (총 600×200 유지, 블록 크기는 격자에 따라 가변)
+  const stageLayouts = {
+    1: [3, 5], // rows, cols
+    2: [4, 6],
+    3: [5, 7],
+    4: [6, 8]
+  };
+  const [rows, cols] = stageLayouts[currentStage] || stageLayouts[4];
+  brick.rows = rows;
+  brick.cols = cols;
+  brick.w = 600 / cols;
+  brick.h = 200 / rows;
 
   const baseHp = getBlockHp();
 
@@ -581,8 +618,9 @@ function collideBricks(ball) {
           playSfx('brickHit');
         }
         // 아이템: 스플래시 (메인 공만, 갑옷은 1 데미지 보장)
+        // splash 계산은 공의 잠재 데미지(stats.ballDamage) 기준 — 갑옷 cap된 primaryDmg가 아님
         if (isMainBall(ball) && effects.splashRatio > 0) {
-          const splashDmg = Math.floor(primaryDmg * effects.splashRatio);
+          const splashDmg = Math.floor(stats.ballDamage * effects.splashRatio);
           for (const n of findNeighbors(b)) {
             const d = n.type === BRICK_TYPE.ARMOR ? 1 : splashDmg;
             if (d > 0) dealDamageToBlock(n, d);
@@ -699,14 +737,26 @@ function updateBall(ball) {
 }
 
 function updateBoss() {
+  let boss = null;
   for (const b of bricks) {
     if (b.type !== BRICK_TYPE.BOSS || !b.alive) continue;
+    boss = b;
     b.x += b.dx;
     b.y += b.dy;
+    const formationH = b.formationH || b.h;
     if (b.x < 0) { b.x = 0; b.dx = Math.abs(b.dx); }
     if (b.x + b.w > W) { b.x = W - b.w; b.dx = -Math.abs(b.dx); }
     if (b.y < 0) { b.y = 0; b.dy = Math.abs(b.dy); }
-    if (b.y + b.h > H / 2) { b.y = H / 2 - b.h; b.dy = -Math.abs(b.dy); }
+    if (b.y + formationH > H / 2) { b.y = H / 2 - formationH; b.dy = -Math.abs(b.dy); }
+  }
+  // 보스에 부착된 파괴불가 타일을 보스 위치 + offset으로 동기화
+  if (boss) {
+    for (const b of bricks) {
+      if (b.bossAttached) {
+        b.x = boss.x + b.bossOffsetX;
+        b.y = boss.y + b.bossOffsetY;
+      }
+    }
   }
 }
 
