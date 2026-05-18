@@ -1,3 +1,4 @@
+/* ─── RESET & LAYOUT ──────────────────────────────────────────────────────── */
 body {
   margin: 0;
   padding: 20px;
@@ -25,6 +26,7 @@ body {
   border: 1px solid #333;
 }
 
+/* ─── OVERLAY ─────────────────────────────────────────────────────────────── */
 .overlay {
   position: absolute;
   inset: 0;
@@ -34,10 +36,39 @@ body {
   background: rgba(0, 0, 0, 0.45);
 }
 
-.overlay.hidden {
-  display: none;
+.overlay.hidden { display: none; }
+
+/* ─── HUD ─────────────────────────────────────────────────────────────────── */
+.canvas-hud {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-end;
+  pointer-events: none;
+  z-index: 1;
 }
 
+.canvas-hud #stage,
+.canvas-hud #score {
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  padding: 3px 10px;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: bold;
+  letter-spacing: 0.02em;
+}
+
+#stage,
+#score {
+  font-size: 16px;
+  font-weight: bold;
+}
+
+/* ─── CLEAR MODAL ─────────────────────────────────────────────────────────── */
 .clear-modal {
   background: #fff;
   padding: 32px 40px;
@@ -59,6 +90,7 @@ body {
   cursor: pointer;
 }
 
+/* ─── SHOP MODAL ──────────────────────────────────────────────────────────── */
 .shop-modal {
   background: #fff;
   padding: 20px 24px;
@@ -67,6 +99,12 @@ body {
   flex-direction: row;
   gap: 24px;
   align-items: stretch;
+}
+
+.shop-modal h2 {
+  margin: 0 0 8px;
+  font-size: 18px;
+  text-align: center;
 }
 
 .shop-left {
@@ -88,62 +126,6 @@ body {
 .shop-right h3 {
   margin: 0 0 4px;
   font-size: 16px;
-  text-align: center;
-}
-
-.reward-cards {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.reward-card {
-  width: 220px;
-  height: 110px;
-  box-sizing: border-box;
-  padding: 12px 14px;
-  font-size: 14px;
-  cursor: pointer;
-  border: 2px solid #d0d0d0;
-  background: #fff;
-  border-radius: 6px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  overflow: hidden;
-}
-
-.reward-card:hover:not(:disabled) {
-  border-color: #2e7d32;
-}
-
-.reward-card.picked {
-  background: #2e7d32;
-  border-color: #1b5e20;
-  color: #fff;
-  cursor: default;
-}
-
-.reward-card:disabled:not(.picked) {
-  opacity: 0.4;
-  cursor: default;
-}
-
-.reward-name {
-  font-weight: bold;
-  font-size: 15px;
-}
-
-.reward-desc {
-  font-size: 12px;
-  opacity: 0.8;
-}
-
-.shop-modal h2 {
-  margin: 0 0 8px;
-  font-size: 18px;
   text-align: center;
 }
 
@@ -174,6 +156,39 @@ body {
   cursor: pointer;
 }
 
+/* ─── REWARD CARDS ────────────────────────────────────────────────────────── */
+.reward-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.reward-card {
+  width: 220px;
+  height: 110px;
+  box-sizing: border-box;
+  padding: 12px 14px;
+  font-size: 14px;
+  cursor: pointer;
+  border: 2px solid #d0d0d0;
+  background: #fff;
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  overflow: hidden;
+}
+
+.reward-card:hover:not(:disabled) { border-color: #2e7d32; }
+.reward-card.picked               { background: #2e7d32; border-color: #1b5e20; color: #fff; cursor: default; }
+.reward-card:disabled:not(.picked){ opacity: 0.4; cursor: default; }
+
+.reward-name { font-weight: bold; font-size: 15px; }
+.reward-desc { font-size: 12px; opacity: 0.8; }
+
+/* ─── WIN MODAL ───────────────────────────────────────────────────────────── */
 .win-modal {
   background: #fff;
   padding: 32px 40px;
@@ -193,14 +208,7 @@ body {
   font-size: 18px;
 }
 
-#restartBtn,
-#gameoverRestartBtn {
-  padding: 10px 28px;
-  font-size: 16px;
-  font-weight: bold;
-  cursor: pointer;
-}
-
+/* ─── GAMEOVER MODAL ──────────────────────────────────────────────────────── */
 .gameover-modal {
   background: #fff;
   padding: 32px 40px;
@@ -215,6 +223,14 @@ body {
   color: #c00;
 }
 
+#restartBtn,
+#gameoverRestartBtn {
+  padding: 10px 28px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
 #winMainBtn,
 #gameoverMainBtn {
   padding: 8px 20px;
@@ -223,6 +239,7 @@ body {
   margin-left: 8px;
 }
 
+/* ─── MAIN MODAL ──────────────────────────────────────────────────────────── */
 .main-modal {
   background: #fff;
   padding: 56px 64px;
@@ -235,10 +252,6 @@ body {
   margin: 0 0 28px;
   font-size: 52px;
   letter-spacing: 0.04em;
-}
-
-#main-settings {
-  margin-bottom: 24px;
 }
 
 .main-buttons {
@@ -260,11 +273,9 @@ body {
   min-width: 180px;
 }
 
-#newGameBtn {
-  background: #222;
-  color: #fff;
-}
+#newGameBtn { background: #222; color: #fff; }
 
+/* ─── SETTINGS MODAL ──────────────────────────────────────────────────────── */
 .settings-modal {
   background: #fff;
   padding: 36px 48px;
@@ -280,26 +291,7 @@ body {
   font-size: 28px;
 }
 
-#closeSettingsBtn {
-  margin-top: 16px;
-  padding: 10px 28px;
-  font-size: 14px;
-  font-weight: bold;
-  cursor: pointer;
-  border-radius: 6px;
-  border: 2px solid #222;
-  background: #fff;
-}
-
-#startGameBtn {
-  padding: 18px 56px;
-  font-size: 28px;
-  font-weight: bold;
-  cursor: pointer;
-  border-radius: 8px;
-  border: 2px solid #222;
-  background: #fff;
-}
+#main-settings { margin-bottom: 24px; }
 
 .setting-group {
   margin-bottom: 16px;
@@ -341,70 +333,33 @@ body {
   font-weight: bold;
 }
 
-.legend {
-  margin-top: 12px;
-  background: #fff;
-  border: 1px solid #ccc;
-  padding: 12px 16px;
-  font-size: 13px;
-  width: 800px;
-  box-sizing: border-box;
-}
-
-.legend h3 {
-  margin: 0 0 8px;
+#closeSettingsBtn {
+  margin-top: 16px;
+  padding: 10px 28px;
   font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  border-radius: 6px;
+  border: 2px solid #222;
+  background: #fff;
 }
 
-.legend-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 2px 0;
+#startGameBtn {
+  padding: 18px 56px;
+  font-size: 28px;
+  font-weight: bold;
+  cursor: pointer;
+  border-radius: 8px;
+  border: 2px solid #222;
+  background: #fff;
 }
 
-.legend-color {
-  width: 16px;
-  height: 16px;
-  border: 1px solid #000;
-  display: inline-block;
-  flex-shrink: 0;
-}
-
+/* ─── CONTROLS & MESSAGE ──────────────────────────────────────────────────── */
 .controls {
   margin-top: 8px;
   display: flex;
   align-items: center;
   gap: 12px;
-}
-
-#stage,
-#score {
-  font-size: 16px;
-  font-weight: bold;
-}
-
-.canvas-hud {
-  position: absolute;
-  top: 10px;
-  right: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  align-items: flex-end;
-  pointer-events: none;
-  z-index: 1; /* overlay(.overlay)는 DOM 뒤에 있어 z 미설정 시에도 위에 옴 — HUD는 그 아래로 */
-}
-
-.canvas-hud #stage,
-.canvas-hud #score {
-  background: rgba(0, 0, 0, 0.55);
-  color: #fff;
-  padding: 3px 10px;
-  border-radius: 4px;
-  font-size: 14px;
-  font-weight: bold;
-  letter-spacing: 0.02em;
 }
 
 #message {
@@ -428,6 +383,35 @@ body {
   cursor: pointer;
 }
 
+/* ─── LEGEND ──────────────────────────────────────────────────────────────── */
+.legend {
+  margin-top: 12px;
+  background: #fff;
+  border: 1px solid #ccc;
+  padding: 12px 16px;
+  font-size: 13px;
+  width: 800px;
+  box-sizing: border-box;
+}
+
+.legend h3 { margin: 0 0 8px; font-size: 14px; }
+
+.legend-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0;
+}
+
+.legend-color {
+  width: 16px;
+  height: 16px;
+  border: 1px solid #000;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+/* ─── SIDE SHOP PANEL ─────────────────────────────────────────────────────── */
 .shop-panel {
   width: 200px;
   background: #fff;
@@ -436,10 +420,7 @@ body {
   font-size: 14px;
 }
 
-.shop-panel h3 {
-  margin: 0 0 12px;
-  font-size: 16px;
-}
+.shop-panel h3 { margin: 0 0 12px; font-size: 16px; }
 
 .stat-row {
   display: flex;
