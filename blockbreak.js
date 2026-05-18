@@ -7,7 +7,6 @@ const dom = {
   score:    document.getElementById('score'),
   message:  document.getElementById('message'),
   statDamage:     document.getElementById('stat-damage'),
-  statRadius:     document.getElementById('stat-radius'),
   statPaddle:     document.getElementById('stat-paddle'),
   statGold:       document.getElementById('stat-gold'),
   statGoldChance: document.getElementById('stat-goldchance'),
@@ -24,7 +23,6 @@ const dom = {
   winScore:        document.getElementById('win-score'),
   shopGold:        document.getElementById('shop-gold'),
   priceDamage:     document.getElementById('price-damage'),
-  priceRadius:     document.getElementById('price-radius'),
   pricePaddle:     document.getElementById('price-paddle'),
   priceGoldChance: document.getElementById('price-goldchance'),
   priceShield:     document.getElementById('price-shield'),
@@ -32,7 +30,6 @@ const dom = {
   confirmBtn:         document.getElementById('confirmBtn'),
   nextStageBtn:       document.getElementById('nextStageBtn'),
   buyDamage:          document.getElementById('buy-damage'),
-  buyRadius:          document.getElementById('buy-radius'),
   buyPaddle:          document.getElementById('buy-paddle'),
   buyGoldChance:      document.getElementById('buy-goldchance'),
   buyShield:          document.getElementById('buy-shield'),
@@ -50,6 +47,7 @@ const dom = {
   legendIndestructible: document.getElementById('legend-indestructible'),
   legendHardened:     document.getElementById('legend-hardened'),
   rewardCards:        Array.from(document.querySelectorAll('.reward-card')),
+  pickedItems:        document.getElementById('picked-items'),
 };
 
 const ctx = dom.canvas.getContext('2d');
@@ -74,8 +72,7 @@ const PADDLE_SPIN = {
 };
 
 const GOLD = {
-  CHANCE_INCREMENT: 0.10,
-  CHANCE_MAX:       1.0,
+  TILE_PER_BUY: 3,
   TRAIT_REWARD:     3,
   TRAIT_BORDER:     '#ffd700',
 };
@@ -131,7 +128,7 @@ const stats = {
   ballDamage: 1,
   ballRadius: 8,
   ballSpeed:  3,
-  goldChance: 0,
+  goldTileCount: 0,
 };
 
 const paddle = {
@@ -156,6 +153,7 @@ const effects = {
   splashRatio:          0,
   bouncyHitsPerSpawn:   0,
   sniperInterval:       0,
+  rapidFireInterval:    0,
   firstWallPierce:      false,
   goldMult:             1,
   ballSpeedMult:        1,
@@ -163,12 +161,12 @@ const effects = {
 
 const effectsState = {
   bouncyHitCount:       0,
-  lastSniperSpawnTime:  0,
+  lastSniperSpawnTime:   0,
+  lastRapidFireSpawnTime: 0,
 };
 
 const shopState = {
   damageBuys:     0,
-  radiusBuys:     0,
   paddleBuys:     0,
   goldchanceBuys: 0,
 };
@@ -228,6 +226,27 @@ function spawnSniperBall() {
   });
 }
 
+function spawnRapidFireBall() {
+  const mainBall = balls.find(isMainBall);
+  if (!mainBall) return;
+  const target = findNearestBrick(mainBall);
+  if (!target) return;
+  const ddx = (target.x + target.w / 2) - mainBall.x;
+  const ddy = (target.y + target.h / 2) - mainBall.y;
+  const dist = Math.hypot(ddx, ddy);
+  if (dist <= 0) return;
+  const speed = stats.ballSpeed;
+  balls.push({
+    x: mainBall.x, y: mainBall.y,
+    r: stats.ballRadius * 0.5,
+    dx: ddx / dist * speed,
+    dy: ddy / dist * speed,
+    color: settings.ballColor,
+    vanishOnHit: true,
+    damageMult: 0.2,
+  });
+}
+
 function findNearestBrick(ball) {
   let best = null, bestD = Infinity;
   for (const b of bricks) {
@@ -264,7 +283,7 @@ function applyBrickType(b, type, baseHp) {
   b.type = type;
   if (type === BRICK_TYPE.ARMOR) {
     b.color = settings.armorColor;
-    b.hp = b.maxHp = 5;
+    b.hp = b.maxHp = 3;
   } else if (type === BRICK_TYPE.HARDENED) {
     b.color = settings.hardenedColor;
     b.hp = b.maxHp = baseHp * 2;
@@ -299,10 +318,12 @@ function initBricks() {
 
   placeSpecialBricks(baseHp, rows, cols);
 
-  for (const b of bricks) {
-    b.trait = null;
-    if (b.type === BRICK_TYPE.INDESTRUCTIBLE || b.type === BRICK_TYPE.BOSS) continue;
-    if (Math.random() < stats.goldChance) b.trait = 'gold';
+  for (const b of bricks) b.trait = null;
+  if (stats.goldTileCount > 0) {
+    const eligible = bricks.filter(b => b.type !== BRICK_TYPE.INDESTRUCTIBLE && b.type !== BRICK_TYPE.BOSS);
+    shuffleInPlace(eligible);
+    const count = Math.min(stats.goldTileCount, eligible.length);
+    for (let i = 0; i < count; i++) eligible[i].trait = 'gold';
   }
 }
 
@@ -323,24 +344,23 @@ function initBossStage() {
     lastHitTime: 0,
     formationH: BOSS.H * 2,
   });
-  for (let i = 0; i < 2; i++) {
-    bricks.push({
-      x: bossX + i * indestW, y: bossY + BOSS.H,
-      w: indestW, h: BOSS.H,
-      hp: Infinity, maxHp: Infinity,
-      alive: true,
-      color: settings.indestructibleColor,
-      type:  BRICK_TYPE.INDESTRUCTIBLE,
-      bossAttached: true,
-      bossOffsetX: i * indestW,
-      bossOffsetY: BOSS.H,
-    });
-  }
+  bricks.push({
+    x: bossX, y: bossY + BOSS.H,
+    w: BOSS.W, h: BOSS.H,
+    hp: Infinity, maxHp: Infinity,
+    alive: true,
+    color: settings.indestructibleColor,
+    type:  BRICK_TYPE.INDESTRUCTIBLE,
+    bossAttached: true,
+    bossOffsetX: 0,
+    bossOffsetY: BOSS.H,
+  });
 }
 
 function placeSpecialBricks(baseHp, rows, cols) {
   const allTypes   = [BRICK_TYPE.ARMOR, BRICK_TYPE.INDESTRUCTIBLE, BRICK_TYPE.HARDENED];
-  const typeRolls  = Array.from({ length: 8 * (currentStage - 1) }, () => allTypes[Math.floor(Math.random() * 3)]);
+  const specialCount = Math.ceil(rows * cols * (currentStage - 1) * 0.15);
+  const typeRolls  = Array.from({ length: specialCount }, () => allTypes[Math.floor(Math.random() * 3)]);
 
   let indestructibleCount = typeRolls.filter(t => t === BRICK_TYPE.INDESTRUCTIBLE).length;
   const otherTypes        = typeRolls.filter(t => t !== BRICK_TYPE.INDESTRUCTIBLE);
@@ -383,7 +403,7 @@ function dealDamageToBlock(b, dmg) {
     score += currentStage;
     if (b.type !== BRICK_TYPE.BOSS) {
       const baseGold = b.trait === 'gold' ? GOLD.TRAIT_REWARD : 1;
-      gold += Math.floor(baseGold * effects.goldMult);
+      gold += Math.ceil(baseGold * effects.goldMult);
       updateStatsDisplay();
     }
     updateScoreDisplay();
@@ -394,7 +414,7 @@ function dealDamageToBlock(b, dmg) {
 
 function applySplash(b, ball) {
   if (!isMainBall(ball) || effects.splashRatio <= 0) return;
-  const splashDmg = Math.floor(stats.ballDamage * effects.splashRatio);
+  const splashDmg = Math.ceil(stats.ballDamage * effects.splashRatio);
   for (const n of findNeighbors(b)) {
     const d = n.type === BRICK_TYPE.ARMOR ? 1 : splashDmg;
     if (d > 0) dealDamageToBlock(n, d);
@@ -450,7 +470,7 @@ function collideBricks(ball) {
       if (onCooldown) {
         playSfx('brickHit');
       } else {
-        const primaryDmg = b.type === BRICK_TYPE.ARMOR ? 1 : stats.ballDamage;
+        const primaryDmg = b.type === BRICK_TYPE.ARMOR ? 1 : Math.ceil(stats.ballDamage * (ball.damageMult ?? 1));
         const destroyed  = dealDamageToBlock(b, primaryDmg);
         playSfx(!isBoss && b.trait === 'gold' && destroyed ? 'goldBrick'
                 : destroyed ? 'brickDestroy' : 'brickHit');
@@ -474,617 +494,632 @@ function allBricksCleared() {
 
 // ─── PHYSICS ──────────────────────────────────────────────────────────────────
 function updateBall(ball) {
+  const prevX = ball.x;
+  const prevY = ball.y;
   ball.x += ball.dx;
   ball.y += ball.dy;
 
   let wallHit = false;
-  if (ball.x - ball.r < 0) { ball.x = ball.r;     ball.dx =  Math.abs(ball.dx); wallHit = true; }
+  if (ball.x - ball.r < 0) { ball.x = ball.r; ball.dx = Math.abs(ball.dx); wallHit = true; }
   if (ball.x + ball.r > W) { ball.x = W - ball.r; ball.dx = -Math.abs(ball.dx); wallHit = true; }
-  if (ball.y - ball.r < 0) { ball.y = ball.r;     ball.dy =  Math.abs(ball.dy); wallHit = true; }
+  if (ball.y - ball.r < 0) { ball.y = ball.r; ball.dy = Math.abs(ball.dy); wallHit = true; }
   if (wallHit) {
+    if (ball.vanishOnHit) { ball.dead = true; return; }
     if (ball.pierce) ball.pierce = false;
     if (ball.bouncesLeft !== undefined && --ball.bouncesLeft <= 0) ball.dead = true;
     incrementBouncyHitCount(ball);
   }
 
-  if (ball.y + ball.r >= paddle.y &&
-      ball.y + ball.r <= paddle.y + paddle.h &&
-      ball.x >= paddle.x && ball.x <= paddle.x + paddle.w &&
-      ball.dy > 0) {
-    ball.dy = -ball.dy;
+  // 패드 충돌: 이전→현재 경로가 패드 상단을 가로질렀는지 검사 (터널링 방지)
+  const prevBottom = prevY + ball.r;
+  const currBottom = ball.y + ball.r;
+  if (ball.dy > 0 && prevBottom <= paddle.y && currBottom >= paddle.y) {
+    const t = (paddle.y - prevBottom) / ball.dy;
+    const hitX = prevX + t * ball.dx;
+    if (hitX + ball.r >= paddle.x && hitX - ball.r <= paddle.x + paddle.w) {
+      ball.x = hitX;
+      ball.y = paddle.y - ball.r;
+      ball.dy = -ball.dy;
 
-    let adj = Math.max(-PADDLE_SPIN.MAX_ANGLE, Math.min(PADDLE_SPIN.MAX_ANGLE, paddle.dx * PADDLE_SPIN.FACTOR));
-    if (adj !== 0) {
-      const cosA = Math.cos(adj), sinA = Math.sin(adj);
-      ball.dx = ball.dx * cosA - ball.dy * sinA;
-      ball.dy = ball.dx * sinA + ball.dy * cosA;
-      if (ball.dy > 0) ball.dy = -ball.dy;
+      let adj = Math.max(-PADDLE_SPIN.MAX_ANGLE, Math.min(PADDLE_SPIN.MAX_ANGLE, paddle.dx * PADDLE_SPIN.FACTOR));
+      if (adj !== 0) {
+        const cosA = Math.cos(adj), sinA = Math.sin(adj);
+        const ndx = ball.dx * cosA - ball.dy * sinA;
+        const ndy = ball.dx * sinA + ball.dy * cosA;
+        ball.dx = ndx;
+        ball.dy = ndy;
+        if (ball.dy > 0) ball.dy = -ball.dy;
+      }
+
+      // 최대 각도 ±60° (수직 기준) 스냅
+      const maxAngle = Math.PI / 3;
+      const angleFromVertical = Math.atan2(ball.dx, -ball.dy);
+      if (Math.abs(angleFromVertical) > maxAngle) {
+        const speed = Math.hypot(ball.dx, ball.dy);
+        const sign = Math.sign(angleFromVertical) || 1;
+        ball.dx = Math.sin(maxAngle * sign) * speed;
+        ball.dy = -Math.cos(maxAngle * sign) * speed;
+      }
+
+      if (ball.bouncesLeft !== undefined && --ball.bouncesLeft <= 0) ball.dead = true;
+      incrementBouncyHitCount(ball);
+      playSfx('paddle');
     }
-
-    // 최대 각도 ±60° (수직 기준) 스냅
-    const maxAngle        = Math.PI / 3;
-    const angleFromVertical = Math.atan2(ball.dx, -ball.dy);
-    if (Math.abs(angleFromVertical) > maxAngle) {
-      const speed = Math.hypot(ball.dx, ball.dy);
-      const sign  = Math.sign(angleFromVertical) || 1;
-      ball.dx = Math.sin(maxAngle * sign) * speed;
-      ball.dy = -Math.cos(maxAngle * sign) * speed;
-    }
-
-    if (ball.bouncesLeft !== undefined && --ball.bouncesLeft <= 0) ball.dead = true;
-    incrementBouncyHitCount(ball);
-    playSfx('paddle');
   }
 
   collideBricks(ball);
 }
 
 function updateBoss() {
-  let boss = null;
-  for (const b of bricks) {
-    if (b.type !== BRICK_TYPE.BOSS || !b.alive) continue;
-    boss = b;
-    b.x += b.dx; b.y += b.dy;
-    const formH = b.formationH || b.h;
-    if (b.x < 0)           { b.x = 0;           b.dx =  Math.abs(b.dx); }
-    if (b.x + b.w > W)     { b.x = W - b.w;     b.dx = -Math.abs(b.dx); }
-    if (b.y < 0)           { b.y = 0;            b.dy =  Math.abs(b.dy); }
-    if (b.y + formH > H/2) { b.y = H/2 - formH; b.dy = -Math.abs(b.dy); }
-  }
-  if (boss) {
+    let boss = null;
     for (const b of bricks) {
-      if (b.bossAttached) { b.x = boss.x + b.bossOffsetX; b.y = boss.y + b.bossOffsetY; }
+      if (b.type !== BRICK_TYPE.BOSS || !b.alive) continue;
+      boss = b;
+      b.x += b.dx; b.y += b.dy;
+      const formH = b.formationH || b.h;
+      if (b.x < 0) { b.x = 0; b.dx = Math.abs(b.dx); }
+      if (b.x + b.w > W) { b.x = W - b.w; b.dx = -Math.abs(b.dx); }
+      if (b.y < 0) { b.y = 0; b.dy = Math.abs(b.dy); }
+      if (b.y + formH > H / 2) { b.y = H / 2 - formH; b.dy = -Math.abs(b.dy); }
     }
-  }
-}
-
-function updatePaddleHistory() {
-  const now  = performance.now();
-  const dtMs = paddle.lastFrameTime > 0 ? now - paddle.lastFrameTime : 0;
-  if (dtMs > 0) {
-    const v = (paddle.x - paddle.lastFrameX) * (1000 / 60) / dtMs;
-    paddle.history.push({ t: now, v });
-    while (paddle.history.length > 1 && now - paddle.history[0].t > PADDLE_SPIN.HISTORY_WINDOW_MS) {
-      paddle.history.shift();
-    }
-  }
-  paddle.lastFrameX    = paddle.x;
-  paddle.lastFrameTime = now;
-  let sum = 0;
-  for (const s of paddle.history) sum += s.v;
-  paddle.dx = paddle.history.length > 0 ? sum / paddle.history.length : 0;
-}
-
-function tickSniperSpawn() {
-  if (effects.sniperInterval <= 0) return;
-  if (!bricks.some(b => b.alive && b.type !== BRICK_TYPE.INDESTRUCTIBLE)) return;
-  const now = performance.now();
-  if (effectsState.lastSniperSpawnTime === 0) {
-    effectsState.lastSniperSpawnTime = now;
-  } else if (now - effectsState.lastSniperSpawnTime > effects.sniperInterval * 1000) {
-    effectsState.lastSniperSpawnTime = now;
-    spawnSniperBall();
-  }
-}
-
-function update() {
-  updatePaddleHistory();
-  tickSniperSpawn();
-
-  for (const ball of balls) updateBall(ball);
-  if (currentStage === MAX_STAGE) updateBoss();
-
-  if (hasShield) {
-    const mainBall = balls.find(isMainBall);
-    if (mainBall && mainBall.y - mainBall.r > H) {
-      mainBall.y  = H - mainBall.r;
-      mainBall.dy = -Math.abs(mainBall.dy);
-      hasShield   = false;
-      dom.message.textContent = '보호막 발동!';
-      playSfx('shield');
-      updateStatsDisplay();
-      setTimeout(() => {
-        if (dom.message.textContent === '보호막 발동!') dom.message.textContent = '';
-      }, 1500);
+    if (boss) {
+      for (const b of bricks) {
+        if (b.bossAttached) { b.x = boss.x + b.bossOffsetX; b.y = boss.y + b.bossOffsetY; }
+      }
     }
   }
 
-  balls = balls.filter(b => !b.dead && b.y - b.r <= H);
-  if (balls.length === 0) { gameOver(false); return; }
-
-  if (currentStage === MAX_STAGE && bossStartTime !== null) {
-    const elapsed = (performance.now() - bossStartTime) / 1000;
-    if (elapsed >= BOSS.TIME_LIMIT_SEC) { gameOver(false); return; }
-    updateStageDisplay();
-    updateScoreDisplay();
-  }
-
-  if (allBricksCleared()) gameOver(true);
-}
-
-// ─── DRAW ─────────────────────────────────────────────────────────────────────
-function draw() {
-  ctx.clearRect(0, 0, W, H);
-  drawBricks();
-  drawBalls();
-  drawPaddle();
-  drawShield();
-}
-
-function drawBalls() {
-  for (const ball of balls) {
-    ctx.beginPath();
-    ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
-    ctx.fillStyle = ball.color;
-    ctx.fill();
-    ctx.closePath();
-  }
-}
-
-function drawPaddle() {
-  ctx.fillStyle = '#000';
-  ctx.fillRect(paddle.x, paddle.y, paddle.w, paddle.h);
-}
-
-function drawShield() {
-  if (!hasShield) return;
-  ctx.fillStyle = '#4caf50';
-  ctx.fillRect(0, H - 4, W, 4);
-}
-
-function drawBricks() {
-  ctx.textAlign    = 'center';
-  ctx.textBaseline = 'middle';
-  for (const b of bricks) {
-    if (!b.alive) continue;
-    ctx.fillStyle = b.color;
-    ctx.fillRect(b.x, b.y, b.w, b.h);
-    ctx.strokeStyle = '#000';
-    ctx.lineWidth   = 2;
-    ctx.strokeRect(b.x, b.y, b.w, b.h);
-    if (b.trait === 'gold') {
-      ctx.strokeStyle = GOLD.TRAIT_BORDER;
-      ctx.strokeRect(b.x + 2, b.y + 2, b.w - 4, b.h - 4);
+  function updatePaddleHistory() {
+    const now = performance.now();
+    const dtMs = paddle.lastFrameTime > 0 ? now - paddle.lastFrameTime : 0;
+    if (dtMs > 0) {
+      const v = (paddle.x - paddle.lastFrameX) * (1000 / 60) / dtMs;
+      paddle.history.push({ t: now, v });
+      while (paddle.history.length > 1 && now - paddle.history[0].t > PADDLE_SPIN.HISTORY_WINDOW_MS) {
+        paddle.history.shift();
+      }
     }
-    const cx   = b.x + b.w / 2, cy = b.y + b.h / 2;
-    const text = b.type === BRICK_TYPE.INDESTRUCTIBLE ? '∞' : String(b.hp);
-    ctx.font        = b.type === BRICK_TYPE.BOSS ? 'bold 32px sans-serif' : 'bold 16px sans-serif';
-    ctx.strokeStyle = 'rgba(0,0,0,0.7)';
-    ctx.lineWidth   = 1.5;
-    ctx.lineJoin    = 'round';
-    ctx.strokeText(text, cx, cy);
-    ctx.fillStyle = '#fff';
-    ctx.fillText(text, cx, cy);
+    paddle.lastFrameX = paddle.x;
+    paddle.lastFrameTime = now;
+    let sum = 0;
+    for (const s of paddle.history) sum += s.v;
+    paddle.dx = paddle.history.length > 0 ? sum / paddle.history.length : 0;
   }
-}
 
-// ─── DISPLAY UPDATES ──────────────────────────────────────────────────────────
-function updateScoreDisplay() {
-  if (currentStage === MAX_STAGE && bossStartTime !== null) {
-    const elapsed = (performance.now() - bossStartTime) / 1000;
-    dom.score.textContent = `점수: ${Math.max(0, Math.floor((BOSS.TIME_LIMIT_SEC - elapsed) * 100))}`;
-  } else {
-    dom.score.textContent = `점수: ${score}`;
+  function tickSniperSpawn() {
+    if (effects.sniperInterval <= 0) return;
+    if (!bricks.some(b => b.alive && b.type !== BRICK_TYPE.INDESTRUCTIBLE)) return;
+    const now = performance.now();
+    if (effectsState.lastSniperSpawnTime === 0) {
+      effectsState.lastSniperSpawnTime = now;
+    } else if (now - effectsState.lastSniperSpawnTime > effects.sniperInterval * 1000) {
+      effectsState.lastSniperSpawnTime = now;
+      spawnSniperBall();
+    }
   }
-}
 
-function updateStageDisplay() {
-  if (currentStage === MAX_STAGE && bossStartTime !== null) {
-    const elapsed   = (performance.now() - bossStartTime) / 1000;
-    const remaining = Math.max(0, Math.ceil(BOSS.TIME_LIMIT_SEC - elapsed));
-    dom.stage.textContent = `스테이지: ${currentStage} (남은 시간: ${remaining}초)`;
-  } else {
-    dom.stage.textContent = `스테이지: ${currentStage}`;
+  function tickRapidFire() {
+    if (effects.rapidFireInterval <= 0) return;
+    if (!bricks.some(b => b.alive && b.type !== BRICK_TYPE.INDESTRUCTIBLE)) return;
+    const now = performance.now();
+    if (effectsState.lastRapidFireSpawnTime === 0) {
+      effectsState.lastRapidFireSpawnTime = now;
+    } else if (now - effectsState.lastRapidFireSpawnTime > effects.rapidFireInterval * 1000) {
+      effectsState.lastRapidFireSpawnTime = now;
+      spawnRapidFireBall();
+    }
   }
-}
 
-function updateStatsDisplay() {
-  dom.statDamage.textContent     = stats.ballDamage;
-  dom.statRadius.textContent     = stats.ballRadius;
-  dom.statPaddle.textContent     = paddle.w;
-  dom.statGoldChance.textContent = Math.round(stats.goldChance * 100) + '%';
-  dom.statGold.textContent       = gold;
-}
+  function update() {
+    updatePaddleHistory();
+    tickSniperSpawn();
+    tickRapidFire();
 
-// ─── GAME FLOW ────────────────────────────────────────────────────────────────
-function resetGame() {
-  paddle.x = (W - paddle.w) / 2;
-  paddle.history = []; paddle.dx = 0;
-  paddle.lastFrameX = paddle.x; paddle.lastFrameTime = 0;
-  stats.ballSpeed = stageBallSpeed() * effects.ballSpeedMult;
-  const speed = stats.ballSpeed;
-  const angle = (Math.random() * 60 - 30) * Math.PI / 180;
-  balls = [createBall(
-    paddle.x + paddle.w / 2, paddle.y - stats.ballRadius,
-    Math.sin(angle) * speed, -Math.cos(angle) * speed
-  )];
-  effectsState.lastSniperSpawnTime = 0;
-  bossStartTime = null;
-  initBricks();
-  dom.message.textContent = '';
-  updateScoreDisplay(); updateStageDisplay(); updateStatsDisplay();
-  gameState = 'ready';
-}
+    for (const ball of balls) updateBall(ball);
+    if (currentStage === MAX_STAGE) updateBoss();
 
-function fullReset() {
-  currentStage = 1; score = 0; gold = 0; hasShield = false;
-  stats.ballDamage = 1; stats.ballRadius = 8; stats.ballSpeed = 3; stats.goldChance = 0;
-  paddle.w = 100;
-  shopState.damageBuys = 0; shopState.radiusBuys = 0;
-  shopState.paddleBuys = 0; shopState.goldchanceBuys = 0;
-  bossStartTime = null;
-  Object.assign(effects, {
-    indestructiblePierce: false, splashRatio: 0,
-    bouncyHitsPerSpawn: 0,       sniperInterval: 0,
-    firstWallPierce: false,      goldMult: 1, ballSpeedMult: 1,
-  });
-  effectsState.bouncyHitCount = 0; effectsState.lastSniperSpawnTime = 0;
-  pickedItemIds.clear();
-}
+    if (hasShield) {
+      const mainBall = balls.find(isMainBall);
+      if (mainBall && mainBall.y - mainBall.r > H) {
+        mainBall.y = H - mainBall.r;
+        mainBall.dy = -Math.abs(mainBall.dy);
+        hasShield = false;
+        dom.message.textContent = '보호막 발동!';
+        playSfx('shield');
+        updateStatsDisplay();
+        setTimeout(() => {
+          if (dom.message.textContent === '보호막 발동!') dom.message.textContent = '';
+        }, 1500);
+      }
+    }
 
-function startGame() {
-  if (gameState !== 'ready') return;
-  gameState = 'playing';
-  if (currentStage === MAX_STAGE) bossStartTime = performance.now();
-  running = true;
-  animationId = requestAnimationFrame(loop);
-}
+    balls = balls.filter(b => !b.dead && b.y - b.r <= H);
+    if (balls.length === 0) { gameOver(false); return; }
 
-function loop() {
-  if (!running) return;
-  update(); draw();
-  if (running) animationId = requestAnimationFrame(loop);
-}
-
-function gameOver(won) {
-  running = false;
-  cancelAnimationFrame(animationId);
-  if (won) {
-    if (currentStage === MAX_STAGE) {
+    if (currentStage === MAX_STAGE && bossStartTime !== null) {
       const elapsed = (performance.now() - bossStartTime) / 1000;
-      dom.winScore.textContent = Math.max(0, Math.floor((BOSS.TIME_LIMIT_SEC - elapsed) * 100));
-      gameState = 'won';
-      show(dom.winOverlay);
+      if (elapsed >= BOSS.TIME_LIMIT_SEC) { gameOver(false); return; }
+      updateStageDisplay();
+      updateScoreDisplay();
+    }
+
+    if (allBricksCleared()) gameOver(true);
+  }
+
+  // ─── DRAW ─────────────────────────────────────────────────────────────────────
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    drawBricks();
+    drawBalls();
+    drawPaddle();
+    drawShield();
+  }
+
+  function drawBalls() {
+    for (const ball of balls) {
+      ctx.beginPath();
+      ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
+      ctx.fillStyle = ball.color;
+      ctx.fill();
+      ctx.closePath();
+    }
+  }
+
+  function drawPaddle() {
+    ctx.fillStyle = '#000';
+    ctx.fillRect(paddle.x, paddle.y, paddle.w, paddle.h);
+  }
+
+  function drawShield() {
+    if (!hasShield) return;
+    ctx.fillStyle = '#4caf50';
+    ctx.fillRect(0, H - 4, W, 4);
+  }
+
+  function drawBricks() {
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    for (const b of bricks) {
+      if (!b.alive) continue;
+      ctx.fillStyle = b.color;
+      ctx.fillRect(b.x, b.y, b.w, b.h);
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(b.x, b.y, b.w, b.h);
+      if (b.trait === 'gold') {
+        ctx.strokeStyle = GOLD.TRAIT_BORDER;
+        ctx.strokeRect(b.x + 2, b.y + 2, b.w - 4, b.h - 4);
+      }
+      const cx = b.x + b.w / 2, cy = b.y + b.h / 2;
+      const text = b.type === BRICK_TYPE.INDESTRUCTIBLE ? '∞' : String(b.hp);
+      ctx.font = b.type === BRICK_TYPE.BOSS ? 'bold 32px sans-serif' : 'bold 16px sans-serif';
+      ctx.strokeStyle = 'rgba(0,0,0,0.7)';
+      ctx.lineWidth = 1.5;
+      ctx.lineJoin = 'round';
+      ctx.strokeText(text, cx, cy);
+      ctx.fillStyle = '#fff';
+      ctx.fillText(text, cx, cy);
+    }
+  }
+
+  // ─── DISPLAY UPDATES ──────────────────────────────────────────────────────────
+  function updateScoreDisplay() {
+    if (currentStage === MAX_STAGE && bossStartTime !== null) {
+      const elapsed = (performance.now() - bossStartTime) / 1000;
+      dom.score.textContent = `점수: ${Math.max(0, Math.ceil((BOSS.TIME_LIMIT_SEC - elapsed) * 100))}`;
     } else {
-      dom.clearMessage.textContent = `스테이지 ${currentStage} 클리어!`;
-      dom.message.textContent = '';
-      currentStage++;
-      gameState = 'cleared';
-      show(dom.confirmOverlay);
+      dom.score.textContent = `점수: ${score}`;
     }
-    playSfx('win');
-  } else {
-    gameState = 'gameover';
-    show(dom.gameoverOverlay);
-    playSfx('gameover');
   }
-  updateStageDisplay();
-  updateStatsDisplay();
-}
 
-function returnToStart() {
-  hide(dom.winOverlay); hide(dom.gameoverOverlay);
-  fullReset(); resetGame();
-  gameState = 'preGame';
-  show(dom.preGameOverlay);
-  draw();
-}
-
-function returnToMain() {
-  [dom.winOverlay, dom.gameoverOverlay, dom.confirmOverlay,
-   dom.shopOverlay, dom.preGameOverlay, dom.settingsOverlay].forEach(hide);
-  fullReset(); resetGame();
-  gameState = 'main';
-  show(dom.mainOverlay);
-  draw();
-}
-
-// ─── SHOP ─────────────────────────────────────────────────────────────────────
-function priceFor(kind) {
-  if (kind === 'shield') return 20;
-  return 5 + 5 * shopState[kind + 'Buys'];
-}
-
-function updateShopUI() {
-  const maxed = stats.goldChance >= GOLD.CHANCE_MAX;
-  dom.shopGold.textContent        = gold;
-  dom.priceDamage.textContent     = priceFor('damage');
-  dom.priceRadius.textContent     = priceFor('radius');
-  dom.pricePaddle.textContent     = priceFor('paddle');
-  dom.priceGoldChance.textContent = maxed ? '최대' : priceFor('goldchance');
-  dom.priceShield.textContent     = hasShield ? '보유중' : priceFor('shield');
-  dom.buyDamage.disabled    = gold < priceFor('damage');
-  dom.buyRadius.disabled    = gold < priceFor('radius');
-  dom.buyPaddle.disabled    = gold < priceFor('paddle');
-  dom.buyGoldChance.disabled = maxed || gold < priceFor('goldchance');
-  dom.buyShield.disabled    = hasShield || gold < priceFor('shield');
-}
-
-function buy(kind) {
-  if (kind === 'shield' && hasShield) return;
-  if (kind === 'goldchance' && stats.goldChance >= GOLD.CHANCE_MAX) return;
-  const price = priceFor(kind);
-  if (gold < price) return;
-  gold -= price;
-  if (kind === 'shield') {
-    hasShield = true;
-  } else if (kind === 'goldchance') {
-    shopState.goldchanceBuys++;
-    stats.goldChance = Math.min(GOLD.CHANCE_MAX, stats.goldChance + GOLD.CHANCE_INCREMENT);
-  } else {
-    shopState[kind + 'Buys']++;
-    if (kind === 'damage')      stats.ballDamage += 1;
-    else if (kind === 'radius') stats.ballRadius += 2;
-    else if (kind === 'paddle') paddle.w          += 20;
+  function updateStageDisplay() {
+    if (currentStage === MAX_STAGE && bossStartTime !== null) {
+      const elapsed = (performance.now() - bossStartTime) / 1000;
+      const remaining = Math.max(0, Math.ceil(BOSS.TIME_LIMIT_SEC - elapsed));
+      dom.stage.textContent = `스테이지: ${currentStage} (남은 시간: ${remaining}초)`;
+    } else {
+      dom.stage.textContent = `스테이지: ${currentStage}`;
+    }
   }
-  updateStatsDisplay();
-  updateShopUI();
-}
 
-// ─── ITEMS ────────────────────────────────────────────────────────────────────
-const ITEM_POOL = [
-  { id: 'bouncy_small',    name: '튀는 소형 공', desc: '3회 충돌(벽·패드·블록)마다 5회 튕기는 소형 공 1개 생성',
-    apply: () => { effects.bouncyHitsPerSpawn = 3; } },
-  { id: 'bigger_stronger', name: '강화 공',       desc: '공 크기 +30%, 데미지 +100%',
-    apply: () => { stats.ballRadius *= 1.3; stats.ballDamage *= 2; } },
-  { id: 'indest_pierce',   name: '파괴자',        desc: '파괴 불가 블록 관통',
-    apply: () => { effects.indestructiblePierce = true; } },
-  { id: 'splash',          name: '폭발',          desc: '주변 블록 50% 스플래시 데미지',
-    apply: () => { effects.splashRatio = 0.5; } },
-  { id: 'sniper',          name: '저격',          desc: '5초마다 메인 공 위치에서 가장 가까운 블록 방향으로 직선 발사, 메인 공 2배 속도 (충돌 시 소멸)',
-    apply: () => { effects.sniperInterval = 5; } },
-  { id: 'speed_gold',      name: '쾌속',          desc: '공 속도 +100%, 골드 +50%',
-    apply: () => { effects.ballSpeedMult *= 2; effects.goldMult += 0.5; } },
-  { id: 'pierce_start',    name: '돌격',          desc: '벽에 처음 부딪히기 전까지 블록 통과 (데미지 없음)',
-    apply: () => { effects.firstWallPierce = true; } },
-  { id: 'small_paddle',    name: '도전',          desc: '패드 크기 -50%, 골드 +100%',
-    apply: () => { paddle.w *= 0.5; effects.goldMult += 1; } },
-];
-
-let currentRewards    = [];
-let selectedRewardIdx = null;
-const pickedItemIds   = new Set();
-
-function rollRandomRewards() {
-  const available = ITEM_POOL.filter(i => !pickedItemIds.has(i.id));
-  const shuffled  = available.slice();
-  shuffleInPlace(shuffled);
-  const result = shuffled.slice(0, 3);
-  while (result.length < 3) result.push({ id: `__empty_${result.length}`, name: '?', desc: '(없음)' });
-  return result;
-}
-
-function setupShopRewards() {
-  currentRewards    = rollRandomRewards();
-  selectedRewardIdx = null;
-  for (let i = 0; i < 3; i++) {
-    const card = dom.rewardCards[i];
-    const item = currentRewards[i];
-    card.querySelector('.reward-name').textContent = item.name;
-    card.querySelector('.reward-desc').textContent = item.desc;
-    card.classList.remove('picked');
-    card.disabled = typeof item.apply !== 'function';
+  function updateStatsDisplay() {
+    dom.statDamage.textContent = stats.ballDamage;
+    dom.statPaddle.textContent = paddle.w;
+    dom.statGoldChance.textContent = stats.goldTileCount;
+    dom.statGold.textContent = gold;
   }
-}
 
-function pickReward(idx) {
-  const item = currentRewards[idx];
-  if (!item || typeof item.apply !== 'function') return;
-  selectedRewardIdx = idx;
-  dom.rewardCards.forEach((card, i) => card.classList.toggle('picked', i === idx));
-}
-
-function commitSelectedReward() {
-  if (selectedRewardIdx === null) return;
-  const item = currentRewards[selectedRewardIdx];
-  if (!item || typeof item.apply !== 'function') return;
-  item.apply();
-  pickedItemIds.add(item.id);
-  selectedRewardIdx = null;
-  updateStatsDisplay();
-}
-
-function openShop() {
-  gameState = 'shop';
-  hide(dom.confirmOverlay);
-  show(dom.shopOverlay);
-  setupShopRewards();
-  updateShopUI();
-}
-
-function closeShopToNextStage() {
-  commitSelectedReward();
-  hide(dom.shopOverlay);
-  resetGame();
-  gameState = 'preGame';
-  show(dom.preGameOverlay);
-  draw();
-}
-
-// ─── AUDIO ────────────────────────────────────────────────────────────────────
-function tryPlayBgm() {
-  if (!settings.bgmEnabled || !dom.bgmAudio) return;
-  const p = dom.bgmAudio.play();
-  if (p?.catch) p.catch(() => {});
-}
-
-function pauseBgm() { if (dom.bgmAudio) dom.bgmAudio.pause(); }
-
-let audioCtx = null;
-function getAudioCtx() {
-  if (!audioCtx) {
-    const Ctor = window.AudioContext || window.webkitAudioContext;
-    if (Ctor) audioCtx = new Ctor();
+  // ─── GAME FLOW ────────────────────────────────────────────────────────────────
+  function resetGame() {
+    paddle.x = (W - paddle.w) / 2;
+    paddle.history = []; paddle.dx = 0;
+    paddle.lastFrameX = paddle.x; paddle.lastFrameTime = 0;
+    stats.ballSpeed = stageBallSpeed() * effects.ballSpeedMult;
+    const speed = stats.ballSpeed;
+    const angle = (Math.random() * 60 - 30) * Math.PI / 180;
+    balls = [createBall(
+      paddle.x + paddle.w / 2, paddle.y - stats.ballRadius,
+      Math.sin(angle) * speed, -Math.cos(angle) * speed
+    )];
+    effectsState.lastSniperSpawnTime = 0;
+    effectsState.lastRapidFireSpawnTime = 0;
+    bossStartTime = null;
+    initBricks();
+    dom.message.textContent = '';
+    updateScoreDisplay(); updateStageDisplay(); updateStatsDisplay();
+    gameState = 'ready';
   }
-  return audioCtx;
-}
 
-function playSfx(type) {
-  if (!settings.sfxEnabled) return;
-  const ac = getAudioCtx();
-  if (!ac) return;
-  const now  = ac.currentTime;
-  const osc  = ac.createOscillator();
-  const gain = ac.createGain();
-  osc.connect(gain).connect(ac.destination);
-  let dur = 0.05;
-  switch (type) {
-    case 'paddle':
-      osc.type = 'sine';     osc.frequency.setValueAtTime(440, now);
-      gain.gain.setValueAtTime(0.18, now); dur = 0.05; break;
-    case 'brickHit':
-      osc.type = 'square';   osc.frequency.setValueAtTime(220, now);
-      gain.gain.setValueAtTime(0.12, now); dur = 0.04; break;
-    case 'brickDestroy':
-      osc.type = 'square';   osc.frequency.setValueAtTime(320, now);
-      osc.frequency.linearRampToValueAtTime(160, now + 0.1);
-      gain.gain.setValueAtTime(0.22, now); dur = 0.1; break;
-    case 'goldBrick':
-      osc.type = 'sine';     osc.frequency.setValueAtTime(660, now);
-      osc.frequency.exponentialRampToValueAtTime(1320, now + 0.15);
-      gain.gain.setValueAtTime(0.25, now); dur = 0.15; break;
-    case 'win':
-      osc.type = 'triangle'; osc.frequency.setValueAtTime(523, now);
-      osc.frequency.setValueAtTime(659, now + 0.1);
-      osc.frequency.setValueAtTime(784, now + 0.2);
-      gain.gain.setValueAtTime(0.22, now); dur = 0.4; break;
-    case 'gameover':
-      osc.type = 'sawtooth'; osc.frequency.setValueAtTime(440, now);
-      osc.frequency.linearRampToValueAtTime(110, now + 0.5);
-      gain.gain.setValueAtTime(0.25, now); dur = 0.5; break;
-    case 'shield':
-      osc.type = 'square';   osc.frequency.setValueAtTime(800, now);
-      gain.gain.setValueAtTime(0.18, now); dur = 0.2; break;
-    default: return;
-  }
-  gain.gain.exponentialRampToValueAtTime(0.001, now + dur);
-  osc.start(now); osc.stop(now + dur + 0.02);
-}
-
-// ─── SETTINGS UI ──────────────────────────────────────────────────────────────
-function updateLegendColors() {
-  dom.legendArmor.style.background         = settings.armorColor;
-  dom.legendIndestructible.style.background = settings.indestructibleColor;
-  dom.legendHardened.style.background      = settings.hardenedColor;
-}
-
-function applyBackground() {
-  dom.canvas.style.background = BACKGROUND_PRESETS[settings.backgroundTheme];
-}
-
-document.querySelectorAll('.preset-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const p = COLOR_PRESETS[btn.dataset.preset];
-    if (!p) return;
-    document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    Object.assign(settings, {
-      ballColor: p.ball, brickColor: p.brick, armorColor: p.armor,
-      indestructibleColor: p.indestructible, hardenedColor: p.hardened, bossColor: p.boss,
+  function fullReset() {
+    currentStage = 1; score = 0; gold = 0; hasShield = false;
+    stats.ballDamage = 1; stats.ballRadius = 8; stats.ballSpeed = 3; stats.goldTileCount = 0;
+    paddle.w = 100;
+    shopState.damageBuys = 0;
+    shopState.paddleBuys = 0; shopState.goldchanceBuys = 0;
+    bossStartTime = null;
+    Object.assign(effects, {
+      indestructiblePierce: false, splashRatio: 0,
+      bouncyHitsPerSpawn: 0, sniperInterval: 0, rapidFireInterval: 0,
+      firstWallPierce: false, goldMult: 1, ballSpeedMult: 1,
     });
-    updateLegendColors();
-  });
-});
+    effectsState.bouncyHitCount = 0; effectsState.lastSniperSpawnTime = 0; effectsState.lastRapidFireSpawnTime = 0;
+    pickedItemIds.clear();
+    updatePickedItemsDisplay();
+  }
 
-document.querySelectorAll('.bg-preset-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    if (!BACKGROUND_PRESETS[btn.dataset.bg]) return;
-    document.querySelectorAll('.bg-preset-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    settings.backgroundTheme = btn.dataset.bg;
-    applyBackground();
-  });
-});
+  function startGame() {
+    if (gameState !== 'ready') return;
+    gameState = 'playing';
+    if (currentStage === MAX_STAGE) bossStartTime = performance.now();
+    running = true;
+    animationId = requestAnimationFrame(loop);
+  }
 
-document.querySelectorAll('.bgm-toggle-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.bgm-toggle-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    settings.bgmEnabled = btn.dataset.bgm === 'on';
-    settings.bgmEnabled ? tryPlayBgm() : pauseBgm();
-  });
-});
+  function loop() {
+    if (!running) return;
+    update(); draw();
+    if (running) animationId = requestAnimationFrame(loop);
+  }
 
-document.querySelectorAll('.sfx-toggle-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.sfx-toggle-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    settings.sfxEnabled = btn.dataset.sfx === 'on';
-  });
-});
+  function gameOver(won) {
+    running = false;
+    cancelAnimationFrame(animationId);
+    if (won) {
+      if (currentStage === MAX_STAGE) {
+        const elapsed = (performance.now() - bossStartTime) / 1000;
+        dom.winScore.textContent = Math.max(0, Math.ceil((BOSS.TIME_LIMIT_SEC - elapsed) * 100));
+        gameState = 'won';
+        show(dom.winOverlay);
+      } else {
+        dom.clearMessage.textContent = `스테이지 ${currentStage} 클리어!`;
+        dom.message.textContent = '';
+        currentStage++;
+        gameState = 'cleared';
+        show(dom.confirmOverlay);
+      }
+      playSfx('win');
+    } else {
+      gameState = 'gameover';
+      show(dom.gameoverOverlay);
+      playSfx('gameover');
+    }
+    updateStageDisplay();
+    updateStatsDisplay();
+  }
 
-// ─── EVENT LISTENERS ──────────────────────────────────────────────────────────
-dom.confirmBtn.addEventListener('click', () => { if (gameState === 'cleared') openShop(); });
-dom.nextStageBtn.addEventListener('click', () => { if (gameState === 'shop') closeShopToNextStage(); });
+  function returnToStart() {
+    hide(dom.winOverlay); hide(dom.gameoverOverlay);
+    fullReset(); resetGame();
+    gameState = 'preGame';
+    show(dom.preGameOverlay);
+    draw();
+  }
 
-dom.buyDamage.addEventListener('click',    () => buy('damage'));
-dom.buyRadius.addEventListener('click',    () => buy('radius'));
-dom.buyPaddle.addEventListener('click',    () => buy('paddle'));
-dom.buyGoldChance.addEventListener('click',() => buy('goldchance'));
-dom.buyShield.addEventListener('click',    () => buy('shield'));
+  function returnToMain() {
+    [dom.winOverlay, dom.gameoverOverlay, dom.confirmOverlay,
+    dom.shopOverlay, dom.preGameOverlay, dom.settingsOverlay].forEach(hide);
+    fullReset(); resetGame();
+    gameState = 'main';
+    show(dom.mainOverlay);
+    draw();
+  }
 
-dom.rewardCards.forEach((card, i) => card.addEventListener('click', () => pickReward(i)));
+  // ─── SHOP ─────────────────────────────────────────────────────────────────────
+  function priceFor(kind) {
+    if (kind === 'shield') return 20;
+    return 5 + 5 * shopState[kind + 'Buys'];
+  }
 
-dom.restartBtn.addEventListener('click',         () => { if (gameState === 'won')      returnToStart(); });
-dom.gameoverRestartBtn.addEventListener('click', () => { if (gameState === 'gameover') returnToStart(); });
-dom.winMainBtn.addEventListener('click',         () => { if (gameState === 'won')      returnToMain(); });
-dom.gameoverMainBtn.addEventListener('click',    () => { if (gameState === 'gameover') returnToMain(); });
+  function updateShopUI() {
+    dom.shopGold.textContent = gold;
+    dom.priceDamage.textContent = priceFor('damage');
+    dom.pricePaddle.textContent = priceFor('paddle');
+    dom.priceGoldChance.textContent = priceFor('goldchance');
+    dom.priceShield.textContent = hasShield ? '보유중' : priceFor('shield');
+    dom.buyDamage.disabled = gold < priceFor('damage');
+    dom.buyPaddle.disabled = gold < priceFor('paddle');
+    dom.buyGoldChance.disabled = gold < priceFor('goldchance');
+    dom.buyShield.disabled = hasShield || gold < priceFor('shield');
+  }
 
-dom.newGameBtn.addEventListener('click', () => {
-  if (gameState !== 'main') return;
-  fullReset(); resetGame(); draw();
-  hide(dom.mainOverlay); show(dom.preGameOverlay);
-  gameState = 'preGame';
-});
+  function buy(kind) {
+    if (kind === 'shield' && hasShield) return;
+    const price = priceFor(kind);
+    if (gold < price) return;
+    gold -= price;
+    if (kind === 'shield') {
+      hasShield = true;
+    } else if (kind === 'goldchance') {
+      shopState.goldchanceBuys++;
+      stats.goldTileCount += GOLD.TILE_PER_BUY;
+    } else {
+      shopState[kind + 'Buys']++;
+      if (kind === 'damage') stats.ballDamage += 1;
+      else if (kind === 'paddle') paddle.w += 20;
+    }
+    updateStatsDisplay();
+    updateShopUI();
+  }
 
-dom.openSettingsBtn.addEventListener('click', () => {
-  if (gameState !== 'main') return;
-  hide(dom.mainOverlay); show(dom.settingsOverlay);
-  gameState = 'settings';
-});
+  // ─── ITEMS ────────────────────────────────────────────────────────────────────
+  // ITEM_POOL은 items.js에서 정의됨
 
-dom.closeSettingsBtn.addEventListener('click', () => {
-  if (gameState !== 'settings') return;
-  hide(dom.settingsOverlay); show(dom.mainOverlay);
-  gameState = 'main';
-});
+  let currentRewards = [];
+  let selectedRewardIdx = null;
+  const pickedItemIds = new Set();
 
-dom.startGameBtn.addEventListener('click', () => {
-  if (gameState !== 'preGame') return;
-  hide(dom.preGameOverlay);
-  gameState = 'ready';
-  tryPlayBgm();
-  startGame();
-});
+  function rollRandomRewards() {
+    const available = ITEM_POOL.filter(i => !pickedItemIds.has(i.id));
+    const shuffled = available.slice();
+    shuffleInPlace(shuffled);
+    const result = shuffled.slice(0, 3);
+    while (result.length < 3) result.push({ id: `__empty_${result.length}`, name: '?', desc: '(없음)' });
+    return result;
+  }
 
-document.addEventListener('mousemove', e => {
-  const rect = dom.canvas.getBoundingClientRect();
-  paddle.x = Math.max(0, Math.min(e.clientX - rect.left - paddle.w / 2, W - paddle.w));
-});
-
-dom.testWinBtn.addEventListener('click', () => {
-  if (!running) return;
-  for (const b of bricks) {
-    if (!b.alive || b.type === BRICK_TYPE.INDESTRUCTIBLE) continue;
-    b.alive = false;
-    score += currentStage;
-    if (b.type !== BRICK_TYPE.BOSS) {
-      gold += Math.floor((b.trait === 'gold' ? GOLD.TRAIT_REWARD : 1) * effects.goldMult);
+  function setupShopRewards() {
+    currentRewards = rollRandomRewards();
+    selectedRewardIdx = null;
+    for (let i = 0; i < 3; i++) {
+      const card = dom.rewardCards[i];
+      const item = currentRewards[i];
+      card.querySelector('.reward-name').textContent = item.name;
+      card.querySelector('.reward-desc').textContent = item.desc;
+      card.classList.remove('picked');
+      card.disabled = typeof item.apply !== 'function';
     }
   }
-  updateScoreDisplay(); updateStatsDisplay();
-  gameOver(true);
-});
 
-// ─── INIT ─────────────────────────────────────────────────────────────────────
-const dpr = window.devicePixelRatio || 1;
-dom.canvas.width        = W * dpr;
-dom.canvas.height       = H * dpr;
-dom.canvas.style.width  = W + 'px';
-dom.canvas.style.height = H + 'px';
-ctx.scale(dpr, dpr);
+  function pickReward(idx) {
+    const item = currentRewards[idx];
+    if (!item || typeof item.apply !== 'function') return;
+    selectedRewardIdx = idx;
+    dom.rewardCards.forEach((card, i) => card.classList.toggle('picked', i === idx));
+  }
 
-resetGame();
-applyBackground();
-draw();
-gameState = 'main';
+  function commitSelectedReward() {
+    if (selectedRewardIdx === null) return;
+    const item = currentRewards[selectedRewardIdx];
+    if (!item || typeof item.apply !== 'function') return;
+    item.apply();
+    pickedItemIds.add(item.id);
+    selectedRewardIdx = null;
+    updateStatsDisplay();
+    updatePickedItemsDisplay();
+  }
+
+  function updatePickedItemsDisplay() {
+    dom.pickedItems.innerHTML = '';
+    for (const id of pickedItemIds) {
+      const item = ITEM_POOL.find(i => i.id === id);
+      if (!item) continue;
+      const div = document.createElement('div');
+      div.className = 'picked-item-row';
+      div.innerHTML = `<span class="picked-item-name">${item.name}</span><span class="picked-item-desc">${item.desc}</span>`;
+      dom.pickedItems.appendChild(div);
+    }
+  }
+
+  function openShop() {
+    gameState = 'shop';
+    hide(dom.confirmOverlay);
+    show(dom.shopOverlay);
+    setupShopRewards();
+    updateShopUI();
+  }
+
+  function closeShopToNextStage() {
+    commitSelectedReward();
+    hide(dom.shopOverlay);
+    resetGame();
+    gameState = 'preGame';
+    show(dom.preGameOverlay);
+    draw();
+  }
+
+  // ─── AUDIO ────────────────────────────────────────────────────────────────────
+  function tryPlayBgm() {
+    if (!settings.bgmEnabled || !dom.bgmAudio) return;
+    const p = dom.bgmAudio.play();
+    if (p?.catch) p.catch(() => { });
+  }
+
+  function pauseBgm() { if (dom.bgmAudio) dom.bgmAudio.pause(); }
+
+  let audioCtx = null;
+  function getAudioCtx() {
+    if (!audioCtx) {
+      const Ctor = window.AudioContext || window.webkitAudioContext;
+      if (Ctor) audioCtx = new Ctor();
+    }
+    return audioCtx;
+  }
+
+  function playSfx(type) {
+    if (!settings.sfxEnabled) return;
+    const ac = getAudioCtx();
+    if (!ac) return;
+    const now = ac.currentTime;
+    const osc = ac.createOscillator();
+    const gain = ac.createGain();
+    osc.connect(gain).connect(ac.destination);
+    let dur = 0.05;
+    switch (type) {
+      case 'paddle':
+        osc.type = 'sine'; osc.frequency.setValueAtTime(440, now);
+        gain.gain.setValueAtTime(0.18, now); dur = 0.05; break;
+      case 'brickHit':
+        osc.type = 'square'; osc.frequency.setValueAtTime(220, now);
+        gain.gain.setValueAtTime(0.12, now); dur = 0.04; break;
+      case 'brickDestroy':
+        osc.type = 'square'; osc.frequency.setValueAtTime(320, now);
+        osc.frequency.linearRampToValueAtTime(160, now + 0.1);
+        gain.gain.setValueAtTime(0.22, now); dur = 0.1; break;
+      case 'goldBrick':
+        osc.type = 'sine'; osc.frequency.setValueAtTime(660, now);
+        osc.frequency.exponentialRampToValueAtTime(1320, now + 0.15);
+        gain.gain.setValueAtTime(0.25, now); dur = 0.15; break;
+      case 'win':
+        osc.type = 'triangle'; osc.frequency.setValueAtTime(523, now);
+        osc.frequency.setValueAtTime(659, now + 0.1);
+        osc.frequency.setValueAtTime(784, now + 0.2);
+        gain.gain.setValueAtTime(0.22, now); dur = 0.4; break;
+      case 'gameover':
+        osc.type = 'sawtooth'; osc.frequency.setValueAtTime(440, now);
+        osc.frequency.linearRampToValueAtTime(110, now + 0.5);
+        gain.gain.setValueAtTime(0.25, now); dur = 0.5; break;
+      case 'shield':
+        osc.type = 'square'; osc.frequency.setValueAtTime(800, now);
+        gain.gain.setValueAtTime(0.18, now); dur = 0.2; break;
+      default: return;
+    }
+    gain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+    osc.start(now); osc.stop(now + dur + 0.02);
+  }
+
+  // ─── SETTINGS UI ──────────────────────────────────────────────────────────────
+  function updateLegendColors() {
+    dom.legendArmor.style.background = settings.armorColor;
+    dom.legendIndestructible.style.background = settings.indestructibleColor;
+    dom.legendHardened.style.background = settings.hardenedColor;
+  }
+
+  function applyBackground() {
+    dom.canvas.style.background = BACKGROUND_PRESETS[settings.backgroundTheme];
+  }
+
+  document.querySelectorAll('.preset-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const p = COLOR_PRESETS[btn.dataset.preset];
+      if (!p) return;
+      document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      Object.assign(settings, {
+        ballColor: p.ball, brickColor: p.brick, armorColor: p.armor,
+        indestructibleColor: p.indestructible, hardenedColor: p.hardened, bossColor: p.boss,
+      });
+      updateLegendColors();
+    });
+  });
+
+  document.querySelectorAll('.bg-preset-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (!BACKGROUND_PRESETS[btn.dataset.bg]) return;
+      document.querySelectorAll('.bg-preset-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      settings.backgroundTheme = btn.dataset.bg;
+      applyBackground();
+    });
+  });
+
+  document.querySelectorAll('.bgm-toggle-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.bgm-toggle-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      settings.bgmEnabled = btn.dataset.bgm === 'on';
+      settings.bgmEnabled ? tryPlayBgm() : pauseBgm();
+    });
+  });
+
+  document.querySelectorAll('.sfx-toggle-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.sfx-toggle-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      settings.sfxEnabled = btn.dataset.sfx === 'on';
+    });
+  });
+
+  // ─── EVENT LISTENERS ──────────────────────────────────────────────────────────
+  dom.confirmBtn.addEventListener('click', () => { if (gameState === 'cleared') openShop(); });
+  dom.nextStageBtn.addEventListener('click', () => { if (gameState === 'shop') closeShopToNextStage(); });
+
+  dom.buyDamage.addEventListener('click', () => buy('damage'));
+  dom.buyPaddle.addEventListener('click', () => buy('paddle'));
+  dom.buyGoldChance.addEventListener('click', () => buy('goldchance'));
+  dom.buyShield.addEventListener('click', () => buy('shield'));
+
+  dom.rewardCards.forEach((card, i) => card.addEventListener('click', () => pickReward(i)));
+
+  dom.restartBtn.addEventListener('click', () => { if (gameState === 'won') returnToStart(); });
+  dom.gameoverRestartBtn.addEventListener('click', () => { if (gameState === 'gameover') returnToStart(); });
+  dom.winMainBtn.addEventListener('click', () => { if (gameState === 'won') returnToMain(); });
+  dom.gameoverMainBtn.addEventListener('click', () => { if (gameState === 'gameover') returnToMain(); });
+
+  dom.newGameBtn.addEventListener('click', () => {
+    if (gameState !== 'main') return;
+    fullReset(); resetGame(); draw();
+    hide(dom.mainOverlay); show(dom.preGameOverlay);
+    gameState = 'preGame';
+  });
+
+  dom.openSettingsBtn.addEventListener('click', () => {
+    if (gameState !== 'main') return;
+    hide(dom.mainOverlay); show(dom.settingsOverlay);
+    gameState = 'settings';
+  });
+
+  dom.closeSettingsBtn.addEventListener('click', () => {
+    if (gameState !== 'settings') return;
+    hide(dom.settingsOverlay); show(dom.mainOverlay);
+    gameState = 'main';
+  });
+
+  dom.startGameBtn.addEventListener('click', () => {
+    if (gameState !== 'preGame') return;
+    hide(dom.preGameOverlay);
+    gameState = 'ready';
+    tryPlayBgm();
+    startGame();
+  });
+
+  document.addEventListener('mousemove', e => {
+    const rect = dom.canvas.getBoundingClientRect();
+    paddle.x = Math.max(0, Math.min(e.clientX - rect.left - paddle.w / 2, W - paddle.w));
+  });
+
+  dom.testWinBtn.addEventListener('click', () => {
+    if (!running) return;
+    for (const b of bricks) {
+      if (!b.alive || b.type === BRICK_TYPE.INDESTRUCTIBLE) continue;
+      b.alive = false;
+      score += currentStage;
+      if (b.type !== BRICK_TYPE.BOSS) {
+        gold += Math.ceil((b.trait === 'gold' ? GOLD.TRAIT_REWARD : 1) * effects.goldMult);
+      }
+    }
+    updateScoreDisplay(); updateStatsDisplay();
+    gameOver(true);
+  });
+
+  // ─── INIT ─────────────────────────────────────────────────────────────────────
+  const dpr = window.devicePixelRatio || 1;
+  dom.canvas.width = W * dpr;
+  dom.canvas.height = H * dpr;
+  dom.canvas.style.width = W + 'px';
+  dom.canvas.style.height = H + 'px';
+  ctx.scale(dpr, dpr);
+
+  resetGame();
+  applyBackground();
+  draw();
+  gameState = 'main';

@@ -433,3 +433,21 @@ body {
   border: 0;
   border-top: 1px solid #ddd;
 }
+
+.picked-item-row {
+  padding: 4px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.picked-item-name {
+  font-size: 12px;
+  font-weight: bold;
+  color: #2e7d32;
+}
+
+.picked-item-desc {
+  font-size: 11px;
+  color: #555;
+}

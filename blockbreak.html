@@ -94,15 +94,11 @@
                 <button id="buy-damage" class="buy-btn"><span id="price-damage">5</span> G</button>
               </div>
               <div class="shop-item">
-                <span>공 크기 +2</span>
-                <button id="buy-radius" class="buy-btn"><span id="price-radius">5</span> G</button>
-              </div>
-              <div class="shop-item">
                 <span>패드 크기 +20</span>
                 <button id="buy-paddle" class="buy-btn"><span id="price-paddle">5</span> G</button>
               </div>
               <div class="shop-item">
-                <span>황금 확률 +10%</span>
+                <span>황금 타일 +3</span>
                 <button id="buy-goldchance" class="buy-btn"><span id="price-goldchance">5</span> G</button>
               </div>
               <div class="shop-item">
@@ -142,7 +138,7 @@
         <h3>특수 블록</h3>
         <div class="legend-row">
           <span class="legend-color" id="legend-armor" style="background:#7fb3ff"></span>
-          <span>갑옷 — 한 번에 1 데미지만 받음 (HP 5 고정)</span>
+          <span>갑옷 — 한 번에 1 데미지만 받음 (HP 3 고정)</span>
         </div>
         <div class="legend-row">
           <span class="legend-color" id="legend-indestructible" style="background:#3a3a3a"></span>
@@ -157,14 +153,17 @@
     <aside class="shop-panel">
       <h3>업그레이드</h3>
       <div class="stat-row"><span>공 데미지</span><span id="stat-damage">1</span></div>
-      <div class="stat-row"><span>공 크기</span><span id="stat-radius">8</span></div>
       <div class="stat-row"><span>패드 크기</span><span id="stat-paddle">100</span></div>
-      <div class="stat-row"><span>황금 확률</span><span id="stat-goldchance">0%</span></div>
+      <div class="stat-row"><span>황금 타일</span><span id="stat-goldchance">0</span></div>
       <hr>
       <div class="stat-row"><span>골드</span><span id="stat-gold">0</span></div>
+      <hr>
+      <h3>보유 아이템</h3>
+      <div id="picked-items"></div>
     </aside>
   </div>
   <audio id="bgmAudio" src="../assets/bgm.mp3" loop preload="auto"></audio>
+  <script src="items.js"></script>
   <script src="blockbreak.js"></script>
 </body>
 </html>
