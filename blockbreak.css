@@ -465,6 +465,13 @@ body {
     width: 100%;
   }
 
+  /* 터치로 스크롤·줌 방지 */
+  .canvas-wrap,
+  #gameCanvas {
+    touch-action: none;
+    user-select: none;
+  }
+
   /* 세로: 너비 기준 / 가로: 높이 기준으로 캔버스 맞춤 */
   .canvas-wrap {
     width: min(100%, calc(100dvh * 800 / 500)) !important;
