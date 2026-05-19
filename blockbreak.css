@@ -9,10 +9,18 @@ body {
 }
 
 .game-container {
-  display: flex;
+  display: grid;
   gap: 16px;
-  align-items: flex-start;
+  align-items: start;
+  grid-template-columns: auto 200px;
+  grid-template-areas:
+    "game-area shop-panel"
+    "legend    .         ";
 }
+
+.game-area  { grid-area: game-area; }
+.legend     { grid-area: legend; }
+.shop-panel { grid-area: shop-panel; }
 
 .canvas-wrap {
   position: relative;
@@ -469,38 +477,50 @@ body {
   text-align: center;
 }
 
-/* ─── MOBILE ──────────────────────────────────────────────────────────────── */
-@media (max-width: 860px) {
-  body {
-    padding: 8px;
-    justify-content: flex-start;
+/* ─── MOBILE 가로 모드 ────────────────────────────────────────────────────── */
+@media (max-width: 860px) and (orientation: landscape) {
+  /* 페이지 스크롤·드래그 완전 차단 */
+  html, body {
+    overflow: hidden;
+    width: 100dvw;
+    height: 100dvh;
+    padding: 0;
+    touch-action: none;
   }
 
+  /* 불필요한 요소 숨김 */
+  .controls, .test-controls {
+    display: none;
+  }
+
+  /* 3열 그리드: 범례 | 캔버스 | 스탯 */
   .game-container {
-    flex-direction: column;
-    gap: 8px;
-    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr min(calc(100dvh * 800 / 500), 100dvw) 1fr;
+    grid-template-rows: 100dvh;
+    grid-template-areas: "legend game-area shop-panel";
+    width: 100dvw;
+    height: 100dvh;
+    gap: 0;
+    padding: 0;
+    overflow: hidden;
   }
 
-  /* 터치로 스크롤·줌 방지 */
-  .canvas-wrap,
-  #gameCanvas {
+  .game-area {
+    grid-area: game-area;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100dvh;
+    overflow: hidden;
+  }
+
+  /* 캔버스: 화면 높이 기준으로 비율 유지 */
+  .canvas-wrap {
+    width: 100% !important;
+    height: 100% !important;
     touch-action: none;
     user-select: none;
-  }
-
-  /* 세로: 너비 기준 / 가로: 높이 기준으로 캔버스 맞춤 */
-  .canvas-wrap {
-    width: min(100%, calc(100dvh * 800 / 500)) !important;
-    height: auto !important;
-    aspect-ratio: 800 / 500;
-  }
-
-  /* 세로 모드에서 회전 안내 표시 */
-  @media (orientation: portrait) {
-    #rotateOverlay {
-      display: flex;
-    }
   }
 
   #gameCanvas {
@@ -508,15 +528,49 @@ body {
     height: 100% !important;
   }
 
-  /* 오버레이 내부 모달이 넘칠 때 스크롤 허용 */
+  /* 범례: 왼쪽 열 */
+  .legend {
+    grid-area: legend;
+    width: auto;
+    height: 100dvh;
+    overflow-y: auto;
+    box-sizing: border-box;
+    padding: 8px;
+    font-size: 11px;
+    background: #fff;
+    border: none;
+    border-right: 1px solid #ccc;
+  }
+
+  .legend h3 { font-size: 12px; margin: 0 0 6px; }
+  .legend-row { gap: 5px; padding: 1px 0; }
+  .legend-color { width: 12px; height: 12px; }
+
+  /* 스탯 패널: 오른쪽 열 */
+  .shop-panel {
+    grid-area: shop-panel;
+    width: auto;
+    height: 100dvh;
+    overflow-y: auto;
+    box-sizing: border-box;
+    padding: 8px;
+    font-size: 12px;
+    border: none;
+    border-left: 1px solid #ccc;
+  }
+
+  .shop-panel h3 { font-size: 13px; margin: 0 0 8px; }
+
+  /* 오버레이 모달 스크롤 허용 */
   .overlay {
     align-items: flex-start;
     padding: 12px;
     box-sizing: border-box;
     overflow-y: auto;
+    touch-action: pan-y;
   }
 
-  /* 상점 모달: 가로 → 세로 배치 */
+  /* 상점 모달: 세로 배치 */
   .shop-modal {
     flex-direction: column;
     width: 100%;
@@ -524,10 +578,7 @@ body {
     gap: 12px;
   }
 
-  .shop-left {
-    min-width: unset;
-    width: 100%;
-  }
+  .shop-left { min-width: unset; width: 100%; }
 
   .shop-right {
     border-left: none;
@@ -545,21 +596,17 @@ body {
     gap: 8px;
   }
 
-  .reward-card {
-    width: 46%;
-    height: 80px;
+  .reward-card { width: 46%; height: 80px; }
+}
+
+/* ─── MOBILE 세로 모드 — 회전 안내 ───────────────────────────────────────── */
+@media (orientation: portrait) {
+  html, body {
+    overflow: hidden;
+    touch-action: none;
   }
 
-  .shop-panel {
-    width: 100%;
-    box-sizing: border-box;
-  }
-
-  .legend {
-    width: 100%;
-  }
-
-  .test-controls {
-    display: none;
+  #rotateOverlay {
+    display: flex;
   }
 }
