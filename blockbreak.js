@@ -1092,10 +1092,25 @@ function updateBoss() {
     startGame();
   });
 
-  document.addEventListener('mousemove', e => {
+  function clientXToPaddleX(clientX) {
     const rect = dom.canvas.getBoundingClientRect();
-    paddle.x = Math.max(0, Math.min(e.clientX - rect.left - paddle.w / 2, W - paddle.w));
+    const scale = rect.width / W;
+    return Math.max(0, Math.min((clientX - rect.left) / scale - paddle.w / 2, W - paddle.w));
+  }
+
+  document.addEventListener('mousemove', e => {
+    paddle.x = clientXToPaddleX(e.clientX);
   });
+
+  dom.canvas.addEventListener('touchstart', e => {
+    e.preventDefault();
+    paddle.x = clientXToPaddleX(e.touches[0].clientX);
+  }, { passive: false });
+
+  dom.canvas.addEventListener('touchmove', e => {
+    e.preventDefault();
+    paddle.x = clientXToPaddleX(e.touches[0].clientX);
+  }, { passive: false });
 
   dom.testWinBtn.addEventListener('click', () => {
     if (!running) return;
@@ -1118,6 +1133,16 @@ function updateBoss() {
   dom.canvas.style.width = W + 'px';
   dom.canvas.style.height = H + 'px';
   ctx.scale(dpr, dpr);
+
+  function applyScale() {
+    const area = document.querySelector('.game-area');
+    const scale = Math.min(1, window.innerWidth / (W + 32));
+    area.style.transform = scale < 1 ? `scale(${scale})` : '';
+    area.style.transformOrigin = 'top left';
+    area.style.marginBottom = scale < 1 ? `${(scale - 1) * area.offsetHeight}px` : '';
+  }
+  applyScale();
+  window.addEventListener('resize', applyScale);
 
   resetGame();
   applyBackground();

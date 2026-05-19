@@ -451,3 +451,30 @@ body {
   font-size: 11px;
   color: #555;
 }
+
+/* ─── MOBILE ──────────────────────────────────────────────────────────────── */
+@media (max-width: 860px) {
+  body {
+    padding: 8px;
+    justify-content: flex-start;
+  }
+
+  .game-container {
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .shop-panel {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .legend {
+    width: 100%;
+  }
+
+  .test-controls {
+    display: none;
+  }
+}
