@@ -452,6 +452,23 @@ body {
   color: #555;
 }
 
+/* ─── ROTATE OVERLAY ─────────────────────────────────────────────────────── */
+#rotateOverlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: #111;
+  color: #fff;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  font-size: 18px;
+  font-weight: bold;
+  text-align: center;
+}
+
 /* ─── MOBILE ──────────────────────────────────────────────────────────────── */
 @media (max-width: 860px) {
   body {
@@ -477,6 +494,13 @@ body {
     width: min(100%, calc(100dvh * 800 / 500)) !important;
     height: auto !important;
     aspect-ratio: 800 / 500;
+  }
+
+  /* 세로 모드에서 회전 안내 표시 */
+  @media (orientation: portrait) {
+    #rotateOverlay {
+      display: flex;
+    }
   }
 
   #gameCanvas {
