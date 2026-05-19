@@ -1106,15 +1106,6 @@ function updateBoss(dt) {
     paddle.x = clientXToPaddleX(e.clientX);
   });
 
-  dom.canvas.addEventListener('touchstart', e => {
-    e.preventDefault();
-    paddle.x = clientXToPaddleX(e.touches[0].clientX);
-  }, { passive: false });
-
-  dom.canvas.addEventListener('touchmove', e => {
-    e.preventDefault();
-    paddle.x = clientXToPaddleX(e.touches[0].clientX);
-  }, { passive: false });
 
   dom.testWinBtn.addEventListener('click', () => {
     if (!running) return;
