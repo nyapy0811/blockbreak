@@ -465,6 +465,60 @@ body {
     width: 100%;
   }
 
+  /* 세로: 너비 기준 / 가로: 높이 기준으로 캔버스 맞춤 */
+  .canvas-wrap {
+    width: min(100%, calc(100dvh * 800 / 500)) !important;
+    height: auto !important;
+    aspect-ratio: 800 / 500;
+  }
+
+  #gameCanvas {
+    width: 100% !important;
+    height: 100% !important;
+  }
+
+  /* 오버레이 내부 모달이 넘칠 때 스크롤 허용 */
+  .overlay {
+    align-items: flex-start;
+    padding: 12px;
+    box-sizing: border-box;
+    overflow-y: auto;
+  }
+
+  /* 상점 모달: 가로 → 세로 배치 */
+  .shop-modal {
+    flex-direction: column;
+    width: 100%;
+    max-width: 100%;
+    gap: 12px;
+  }
+
+  .shop-left {
+    min-width: unset;
+    width: 100%;
+  }
+
+  .shop-right {
+    border-left: none;
+    border-top: 1px solid #ddd;
+    padding-left: 0;
+    padding-top: 10px;
+    width: 100%;
+    align-items: stretch;
+  }
+
+  .reward-cards {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .reward-card {
+    width: 46%;
+    height: 80px;
+  }
+
   .shop-panel {
     width: 100%;
     box-sizing: border-box;

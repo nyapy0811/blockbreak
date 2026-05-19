@@ -1134,15 +1134,6 @@ function updateBoss() {
   dom.canvas.style.height = H + 'px';
   ctx.scale(dpr, dpr);
 
-  function applyScale() {
-    const area = document.querySelector('.game-area');
-    const scale = Math.min(1, window.innerWidth / (W + 32));
-    area.style.transform = scale < 1 ? `scale(${scale})` : '';
-    area.style.transformOrigin = 'top left';
-    area.style.marginBottom = scale < 1 ? `${(scale - 1) * area.offsetHeight}px` : '';
-  }
-  applyScale();
-  window.addEventListener('resize', applyScale);
 
   resetGame();
   applyBackground();
