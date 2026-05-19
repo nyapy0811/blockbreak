@@ -157,6 +157,7 @@ const effects = {
   bouncyHitsPerSpawn:   0,
   sniperInterval:       0,
   rapidFireInterval:    0,
+  cloneBallInterval:    0,
   firstWallPierce:      false,
   goldMult:             1,
   ballSpeedMult:        1,
@@ -166,6 +167,7 @@ const effectsState = {
   bouncyHitCount:       0,
   lastSniperSpawnTime:   0,
   lastRapidFireSpawnTime: 0,
+  lastCloneBallSpawnTime: 0,
 };
 
 const shopState = {
@@ -622,17 +624,30 @@ function updateBoss(dt) {
     }
   }
 
+  function tickCloneBall() {
+    if (effects.cloneBallInterval <= 0) return;
+    const now = performance.now();
+    if (effectsState.lastCloneBallSpawnTime === 0) {
+      effectsState.lastCloneBallSpawnTime = now;
+    } else if (now - effectsState.lastCloneBallSpawnTime >= effects.cloneBallInterval * 1000) {
+      effectsState.lastCloneBallSpawnTime = now;
+      const mainBall = balls.find(isMainBall);
+      if (mainBall) balls.push(createBall(mainBall.x, mainBall.y, -mainBall.dx, mainBall.dy));
+    }
+  }
+
   function update(dt) {
     updatePaddleHistory();
     tickSniperSpawn();
     tickRapidFire();
+    tickCloneBall();
 
     for (const ball of balls) updateBall(ball, dt);
     if (currentStage === MAX_STAGE) updateBoss(dt);
 
     if (hasShield) {
       const mainBall = balls.find(isMainBall);
-      if (mainBall && mainBall.y - mainBall.r > H) {
+      if (mainBall && balls.filter(isMainBall).length === 1 && mainBall.y - mainBall.r > H) {
         mainBall.y = H - mainBall.r;
         mainBall.dy = -Math.abs(mainBall.dy);
         hasShield = false;
@@ -773,6 +788,7 @@ function updateBoss(dt) {
     )];
     effectsState.lastSniperSpawnTime = 0;
     effectsState.lastRapidFireSpawnTime = 0;
+    effectsState.lastCloneBallSpawnTime = 0;
     stageStartTime = null;
     lastTickSecond = 0;
     initBricks();
@@ -792,9 +808,9 @@ function updateBoss(dt) {
     Object.assign(effects, {
       indestructiblePierce: false, splashRatio: 0,
       bouncyHitsPerSpawn: 0, sniperInterval: 0, rapidFireInterval: 0,
-      firstWallPierce: false, goldMult: 1, ballSpeedMult: 1,
+      cloneBallInterval: 0, firstWallPierce: false, goldMult: 1, ballSpeedMult: 1,
     });
-    effectsState.bouncyHitCount = 0; effectsState.lastSniperSpawnTime = 0; effectsState.lastRapidFireSpawnTime = 0;
+    effectsState.bouncyHitCount = 0; effectsState.lastSniperSpawnTime = 0; effectsState.lastRapidFireSpawnTime = 0; effectsState.lastCloneBallSpawnTime = 0;
     stageStartTime = null; lastTickSecond = 0;
     pickedItemIds.clear();
     updatePickedItemsDisplay();

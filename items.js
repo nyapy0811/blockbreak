@@ -16,6 +16,7 @@
 //   effects.splashRatio       — 인접 블록 스플래시 비율 (0=비활성)
 //   effects.indestructiblePierce — 파괴불가 블록 관통 여부
 //   effects.firstWallPierce   — 첫 벽 충돌 전까지 블록 관통 여부
+//   effects.cloneBallInterval — N초마다 메인 공 복제 (0=비활성)
 //   paddle.w                  — 패드 너비
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -73,5 +74,11 @@ const ITEM_POOL = [
     name: '연사',
     desc: '1초마다 메인 공 위치에서 가장 가까운 블록 방향으로 직선 발사 (데미지 0.2배, 충돌 시 소멸)',
     apply: () => { effects.rapidFireInterval = 1; }
+  },
+  {
+    id: 'clone_ball',
+    name: '분신술',
+    desc: '30초마다 메인 공을 1개 추가 복제',
+    apply: () => { effects.cloneBallInterval = 30; }
   },
 ];
