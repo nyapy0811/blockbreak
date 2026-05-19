@@ -177,7 +177,23 @@
   <script src="blockbreak.js"></script>
   <script>
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('./sw.js');
+      navigator.serviceWorker.register('./sw.js').then(reg => {
+        reg.addEventListener('updatefound', () => {
+          const next = reg.installing;
+          next.addEventListener('statechange', () => {
+            if (next.state === 'activated') location.reload();
+          });
+        });
+      });
+
+      // SW_UPDATED 메시지 수신 시 리로드 (이미 실행 중인 탭 대응)
+      let reloading = false;
+      navigator.serviceWorker.addEventListener('message', e => {
+        if (e.data?.type === 'SW_UPDATED' && !reloading) {
+          reloading = true;
+          location.reload();
+        }
+      });
     }
   </script>
 </body>

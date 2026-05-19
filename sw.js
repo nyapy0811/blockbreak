@@ -1,4 +1,4 @@
-const CACHE = 'blockbreak-v12';
+const CACHE = 'blockbreak-v13';
 const FILES = [
   './blockbreak.html',
   './blockbreak.css',
@@ -17,9 +17,10 @@ self.addEventListener('install', e => {
 
 self.addEventListener('activate', e => {
   e.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
-    )
+    caches.keys()
+      .then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
+      .then(() => self.clients.matchAll({ type: 'window' }))
+      .then(clients => clients.forEach(c => c.postMessage({ type: 'SW_UPDATED' })))
   );
   self.clients.claim();
 });
