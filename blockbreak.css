@@ -575,8 +575,10 @@ body {
   /* 상점 모달: 세로 배치 */
   .shop-modal {
     flex-direction: column;
-    width: 100%;
-    max-width: 100%;
+    width: 92vw;
+    max-width: 420px;
+    max-height: calc(100dvh - 16px);
+    overflow-y: auto;
     gap: 12px;
   }
 
@@ -591,14 +593,8 @@ body {
     align-items: stretch;
   }
 
-  .reward-cards {
-    flex-direction: row;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 8px;
-  }
-
-  .reward-card { width: 46%; height: 80px; }
+  .reward-cards { flex-direction: row; gap: 6px; }
+  .reward-card { flex: 1; min-width: 0; height: 80px; }
 }
 
 /* ─── MOBILE 세로 모드 ────────────────────────────────────────────────────── */
@@ -647,8 +643,10 @@ body {
     height: 100% !important;
   }
 
-  /* 오버레이: 캔버스 중앙 정렬 */
+  /* 오버레이: canvas-wrap 안에서 중앙 정렬 */
   .overlay {
+    position: absolute;
+    inset: 0;
     align-items: center;
     justify-content: center;
     overflow-y: auto;
@@ -681,11 +679,13 @@ body {
     padding: 4px 8px;
   }
 
-  /* 상점 모달: 세로 배치 */
+  /* 상점 모달 */
   .shop-modal {
     flex-direction: column;
-    width: 100%;
-    max-width: 100%;
+    width: 92vw;
+    max-width: 420px;
+    max-height: calc(100dvw * 500 / 800 - 16px);
+    overflow-y: auto;
     gap: 12px;
   }
 
@@ -700,12 +700,6 @@ body {
     align-items: stretch;
   }
 
-  .reward-cards {
-    flex-direction: row;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 8px;
-  }
-
-  .reward-card { width: 46%; height: 80px; }
+  .reward-cards { flex-direction: row; gap: 6px; }
+  .reward-card { flex: 1; min-width: 0; height: 80px; }
 }

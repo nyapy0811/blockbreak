@@ -3,7 +3,7 @@
   "short_name": "벽돌깨기",
   "description": "HTML5 벽돌깨기 게임",
   "start_url": "./blockbreak.html",
-  "display": "standalone",
+  "display": "fullscreen",
   "orientation": "any",
   "background_color": "#f0f0f0",
   "theme_color": "#222222",
