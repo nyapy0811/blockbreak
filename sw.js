@@ -1,4 +1,4 @@
-const CACHE = 'blockbreak-v11';
+const CACHE = 'blockbreak-v12';
 const FILES = [
   './blockbreak.html',
   './blockbreak.css',
