@@ -111,6 +111,7 @@ let animationId = null;
 let gameState = 'ready';
 let currentStage = 1;
 let bossStartTime = null;
+let lastLoopTs = 0;
 
 const settings = {
   ballColor:           COLOR_PRESETS.default.ball,
@@ -493,11 +494,11 @@ function allBricksCleared() {
 }
 
 // ─── PHYSICS ──────────────────────────────────────────────────────────────────
-function updateBall(ball) {
+function updateBall(ball, dt) {
   const prevX = ball.x;
   const prevY = ball.y;
-  ball.x += ball.dx;
-  ball.y += ball.dy;
+  ball.x += ball.dx * dt;
+  ball.y += ball.dy * dt;
 
   let wallHit = false;
   if (ball.x - ball.r < 0) { ball.x = ball.r; ball.dx = Math.abs(ball.dx); wallHit = true; }
@@ -550,12 +551,12 @@ function updateBall(ball) {
   collideBricks(ball);
 }
 
-function updateBoss() {
+function updateBoss(dt) {
     let boss = null;
     for (const b of bricks) {
       if (b.type !== BRICK_TYPE.BOSS || !b.alive) continue;
       boss = b;
-      b.x += b.dx; b.y += b.dy;
+      b.x += b.dx * dt; b.y += b.dy * dt;
       const formH = b.formationH || b.h;
       if (b.x < 0) { b.x = 0; b.dx = Math.abs(b.dx); }
       if (b.x + b.w > W) { b.x = W - b.w; b.dx = -Math.abs(b.dx); }
@@ -610,13 +611,13 @@ function updateBoss() {
     }
   }
 
-  function update() {
+  function update(dt) {
     updatePaddleHistory();
     tickSniperSpawn();
     tickRapidFire();
 
-    for (const ball of balls) updateBall(ball);
-    if (currentStage === MAX_STAGE) updateBoss();
+    for (const ball of balls) updateBall(ball, dt);
+    if (currentStage === MAX_STAGE) updateBoss(dt);
 
     if (hasShield) {
       const mainBall = balls.find(isMainBall);
@@ -772,12 +773,15 @@ function updateBoss() {
     gameState = 'playing';
     if (currentStage === MAX_STAGE) bossStartTime = performance.now();
     running = true;
+    lastLoopTs = 0;
     animationId = requestAnimationFrame(loop);
   }
 
-  function loop() {
+  function loop(ts) {
     if (!running) return;
-    update(); draw();
+    const dt = lastLoopTs > 0 ? Math.min((ts - lastLoopTs) / (1000 / 60), 3) : 1;
+    lastLoopTs = ts;
+    update(dt); draw();
     if (running) animationId = requestAnimationFrame(loop);
   }
 

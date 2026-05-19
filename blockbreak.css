@@ -601,14 +601,112 @@ body {
   .reward-card { width: 46%; height: 80px; }
 }
 
-/* ─── MOBILE 세로 모드 — 회전 안내 ───────────────────────────────────────── */
+/* ─── MOBILE 세로 모드 ────────────────────────────────────────────────────── */
 @media (max-width: 1024px) and (orientation: portrait) {
   html, body {
-    overflow: hidden;
-    touch-action: none;
+    overflow-x: hidden;
+    overflow-y: auto;
+    width: 100dvw;
+    padding: 0;
+    margin: 0;
+    display: block;
+    touch-action: pan-y;
   }
 
-  #rotateOverlay {
+  /* 회전 안내 숨김 */
+  #rotateOverlay { display: none; }
+
+  /* 세로 1열 배치 */
+  .game-container {
     display: flex;
+    flex-direction: column;
+    width: 100dvw;
+    gap: 0;
   }
+
+  .game-area {
+    display: flex;
+    flex-direction: column;
+    width: 100dvw;
+  }
+
+  /* 캔버스: 전체 너비 기준 비율 유지 + 스크롤해도 상단 고정 */
+  .canvas-wrap {
+    width: 100dvw !important;
+    height: calc(100dvw * 500 / 800) !important;
+    touch-action: none;
+    user-select: none;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: #f0f0f0;
+  }
+
+  #gameCanvas {
+    width: 100% !important;
+    height: 100% !important;
+  }
+
+  /* 오버레이 모달 스크롤 허용 */
+  .overlay {
+    align-items: flex-start;
+    padding: 12px;
+    box-sizing: border-box;
+    overflow-y: auto;
+    touch-action: pan-y;
+  }
+
+  /* 범례 */
+  .legend {
+    width: 100dvw;
+    box-sizing: border-box;
+    padding: 8px 12px;
+    font-size: 13px;
+    border: none;
+    border-top: 1px solid #ccc;
+  }
+
+  /* 스탯 패널 */
+  .shop-panel {
+    width: 100dvw;
+    box-sizing: border-box;
+    padding: 8px 12px;
+    font-size: 13px;
+    border: none;
+    border-top: 1px solid #ccc;
+  }
+
+  /* 컨트롤·테스트 버튼 표시 */
+  .controls, .test-controls {
+    display: flex;
+    padding: 4px 8px;
+  }
+
+  /* 상점 모달: 세로 배치 */
+  .shop-modal {
+    flex-direction: column;
+    width: 100%;
+    max-width: 100%;
+    gap: 12px;
+  }
+
+  .shop-left { min-width: unset; width: 100%; }
+
+  .shop-right {
+    border-left: none;
+    border-top: 1px solid #ddd;
+    padding-left: 0;
+    padding-top: 10px;
+    width: 100%;
+    align-items: stretch;
+  }
+
+  .reward-cards {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .reward-card { width: 46%; height: 80px; }
 }
