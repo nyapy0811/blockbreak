@@ -478,14 +478,16 @@ body {
 }
 
 /* ─── MOBILE 가로 모드 ────────────────────────────────────────────────────── */
-@media (max-width: 860px) and (orientation: landscape) {
+@media (max-height: 500px) and (orientation: landscape) {
   /* 페이지 스크롤·드래그 완전 차단 */
   html, body {
     overflow: hidden;
     width: 100dvw;
     height: 100dvh;
     padding: 0;
+    margin: 0;
     touch-action: none;
+    display: block;
   }
 
   /* 불필요한 요소 숨김 */
@@ -600,7 +602,7 @@ body {
 }
 
 /* ─── MOBILE 세로 모드 — 회전 안내 ───────────────────────────────────────── */
-@media (orientation: portrait) {
+@media (max-width: 1024px) and (orientation: portrait) {
   html, body {
     overflow: hidden;
     touch-action: none;
