@@ -4,6 +4,7 @@
 const dom = {
   canvas:   document.getElementById('gameCanvas'),
   stage:    document.getElementById('stage'),
+  timer:    document.getElementById('timer'),
   score:    document.getElementById('score'),
   message:  document.getElementById('message'),
   statDamage:     document.getElementById('stat-damage'),
@@ -58,7 +59,7 @@ const MAX_STAGE = 5;
 
 const BOSS = {
   SPEED:          4,
-  TIME_LIMIT_SEC: 200,
+  TIME_LIMIT_SEC: 180,
   W:              (600 / 8) * 2,
   H:              200 / 6,
   HP:             150,
@@ -72,8 +73,8 @@ const PADDLE_SPIN = {
 };
 
 const GOLD = {
-  TILE_PER_BUY: 3,
-  TRAIT_REWARD:     3,
+  TILE_PER_BUY: 2,
+  TRAIT_REWARD: 5,
   TRAIT_BORDER:     '#ffd700',
 };
 
@@ -110,7 +111,8 @@ let animationId = null;
 // 'main'|'settings'|'preGame'|'ready'|'playing'|'cleared'|'shop'|'won'|'gameover'
 let gameState = 'ready';
 let currentStage = 1;
-let bossStartTime = null;
+let stageStartTime = null;
+let lastTickSecond = 0;
 let lastLoopTs = 0;
 
 const settings = {
@@ -176,7 +178,10 @@ const shopState = {
 const show = el => el.classList.remove('hidden');
 const hide = el => el.classList.add('hidden');
 
-function stageBallSpeed() { return 2 + currentStage; }
+function stageBallSpeed() {
+  const speeds = [0, 4, 4.5, 5, 5.5, 6];
+  return speeds[currentStage] ?? 6;
+}
 function getBlockHp()     { return (2 ** currentStage) - 1; }
 function isMainBall(ball) { return ball.bouncesLeft === undefined && !ball.vanishOnHit; }
 
@@ -359,9 +364,16 @@ function initBossStage() {
 }
 
 function placeSpecialBricks(baseHp, rows, cols) {
-  const allTypes   = [BRICK_TYPE.ARMOR, BRICK_TYPE.INDESTRUCTIBLE, BRICK_TYPE.HARDENED];
-  const specialCount = Math.ceil(rows * cols * (currentStage - 1) * 0.15);
-  const typeRolls  = Array.from({ length: specialCount }, () => allTypes[Math.floor(Math.random() * 3)]);
+  const allTypes = [BRICK_TYPE.ARMOR, BRICK_TYPE.INDESTRUCTIBLE, BRICK_TYPE.HARDENED];
+  const COUNT_PER_TYPE = [0, 0, 1, 3, 7]; // 스테이지별 종류당 특수 블록 수
+  const countPerType = COUNT_PER_TYPE[currentStage] ?? 0;
+
+  // 각 종류가 countPerType개씩 균등 배치
+  const typeRolls = [];
+  for (const t of allTypes) {
+    for (let j = 0; j < countPerType; j++) typeRolls.push(t);
+  }
+  shuffleInPlace(typeRolls);
 
   let indestructibleCount = typeRolls.filter(t => t === BRICK_TYPE.INDESTRUCTIBLE).length;
   const otherTypes        = typeRolls.filter(t => t !== BRICK_TYPE.INDESTRUCTIBLE);
@@ -401,7 +413,6 @@ function dealDamageToBlock(b, dmg) {
   b.hp -= dmg;
   if (b.hp <= 0) {
     b.alive = false;
-    score += currentStage;
     if (b.type !== BRICK_TYPE.BOSS) {
       const baseGold = b.trait === 'gold' ? GOLD.TRAIT_REWARD : 1;
       gold += Math.ceil(baseGold * effects.goldMult);
@@ -637,11 +648,24 @@ function updateBoss(dt) {
     balls = balls.filter(b => !b.dead && b.y - b.r <= H);
     if (balls.length === 0) { gameOver(false); return; }
 
-    if (currentStage === MAX_STAGE && bossStartTime !== null) {
-      const elapsed = (performance.now() - bossStartTime) / 1000;
-      if (elapsed >= BOSS.TIME_LIMIT_SEC) { gameOver(false); return; }
-      updateStageDisplay();
-      updateScoreDisplay();
+    // 초당 -10점 감산
+    if (stageStartTime !== null) {
+      const elapsed = (performance.now() - stageStartTime) / 1000;
+      const elapsedTenth = Math.floor(elapsed * 10);
+      if (elapsedTenth > lastTickSecond) {
+        score -= 1 * (elapsedTenth - lastTickSecond);
+        lastTickSecond = elapsedTenth;
+        updateScoreDisplay();
+      }
+      updateTimerDisplay();
+
+      // 0점 이하 게임오버
+      if (score <= 0) { gameOver(false); return; }
+
+      // 보스 타임아웃 게임오버
+      if (currentStage === MAX_STAGE && elapsed >= BOSS.TIME_LIMIT_SEC) {
+        gameOver(false); return;
+      }
     }
 
     if (allBricksCleared()) gameOver(true);
@@ -704,23 +728,27 @@ function updateBoss(dt) {
   }
 
   // ─── DISPLAY UPDATES ──────────────────────────────────────────────────────────
+  function formatTime(sec) {
+    const s = Math.abs(Math.floor(sec));
+    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  }
+
   function updateScoreDisplay() {
-    if (currentStage === MAX_STAGE && bossStartTime !== null) {
-      const elapsed = (performance.now() - bossStartTime) / 1000;
-      dom.score.textContent = `점수: ${Math.max(0, Math.ceil((BOSS.TIME_LIMIT_SEC - elapsed) * 100))}`;
-    } else {
-      dom.score.textContent = `점수: ${score}`;
-    }
+    dom.score.textContent = `점수: ${score}`;
   }
 
   function updateStageDisplay() {
-    if (currentStage === MAX_STAGE && bossStartTime !== null) {
-      const elapsed = (performance.now() - bossStartTime) / 1000;
-      const remaining = Math.max(0, Math.ceil(BOSS.TIME_LIMIT_SEC - elapsed));
-      dom.stage.textContent = `스테이지: ${currentStage} (남은 시간: ${remaining}초)`;
-    } else {
-      dom.stage.textContent = `스테이지: ${currentStage}`;
+    dom.stage.textContent = `스테이지: ${currentStage}`;
+  }
+
+  function updateTimerDisplay() {
+    if (currentStage !== MAX_STAGE || stageStartTime === null) {
+      hide(dom.timer);
+      return;
     }
+    const remaining = BOSS.TIME_LIMIT_SEC - (performance.now() - stageStartTime) / 1000;
+    dom.timer.textContent = `⏱ ${formatTime(Math.max(0, remaining))}`;
+    show(dom.timer);
   }
 
   function updateStatsDisplay() {
@@ -737,16 +765,19 @@ function updateBoss(dt) {
     paddle.lastFrameX = paddle.x; paddle.lastFrameTime = 0;
     stats.ballSpeed = stageBallSpeed() * effects.ballSpeedMult;
     const speed = stats.ballSpeed;
-    const angle = (Math.random() * 60 - 30) * Math.PI / 180;
+    const angleDeg = (20 + Math.random() * 20) * (Math.random() < 0.5 ? 1 : -1);
+    const angle = angleDeg * Math.PI / 180;
     balls = [createBall(
       paddle.x + paddle.w / 2, paddle.y - stats.ballRadius,
       Math.sin(angle) * speed, -Math.cos(angle) * speed
     )];
     effectsState.lastSniperSpawnTime = 0;
     effectsState.lastRapidFireSpawnTime = 0;
-    bossStartTime = null;
+    stageStartTime = null;
+    lastTickSecond = 0;
     initBricks();
     dom.message.textContent = '';
+    hide(dom.timer);
     updateScoreDisplay(); updateStageDisplay(); updateStatsDisplay();
     gameState = 'ready';
   }
@@ -757,13 +788,14 @@ function updateBoss(dt) {
     paddle.w = 100;
     shopState.damageBuys = 0;
     shopState.paddleBuys = 0; shopState.goldchanceBuys = 0;
-    bossStartTime = null;
+    stageStartTime = null; lastTickSecond = 0;
     Object.assign(effects, {
       indestructiblePierce: false, splashRatio: 0,
       bouncyHitsPerSpawn: 0, sniperInterval: 0, rapidFireInterval: 0,
       firstWallPierce: false, goldMult: 1, ballSpeedMult: 1,
     });
     effectsState.bouncyHitCount = 0; effectsState.lastSniperSpawnTime = 0; effectsState.lastRapidFireSpawnTime = 0;
+    stageStartTime = null; lastTickSecond = 0;
     pickedItemIds.clear();
     updatePickedItemsDisplay();
   }
@@ -771,7 +803,9 @@ function updateBoss(dt) {
   function startGame() {
     if (gameState !== 'ready') return;
     gameState = 'playing';
-    if (currentStage === MAX_STAGE) bossStartTime = performance.now();
+    stageStartTime = performance.now();
+    lastTickSecond = 0;
+    score += currentStage === MAX_STAGE ? 5000 : 1000;
     running = true;
     lastLoopTs = 0;
     animationId = requestAnimationFrame(loop);
@@ -790,8 +824,7 @@ function updateBoss(dt) {
     cancelAnimationFrame(animationId);
     if (won) {
       if (currentStage === MAX_STAGE) {
-        const elapsed = (performance.now() - bossStartTime) / 1000;
-        dom.winScore.textContent = Math.max(0, Math.ceil((BOSS.TIME_LIMIT_SEC - elapsed) * 100));
+        dom.winScore.textContent = score;
         gameState = 'won';
         show(dom.winOverlay);
       } else {
@@ -831,6 +864,7 @@ function updateBoss(dt) {
   // ─── SHOP ─────────────────────────────────────────────────────────────────────
   function priceFor(kind) {
     if (kind === 'shield') return 20;
+    if (kind === 'goldchance') return 10;
     return 5 + 5 * shopState[kind + 'Buys'];
   }
 
@@ -1112,7 +1146,6 @@ function updateBoss(dt) {
     for (const b of bricks) {
       if (!b.alive || b.type === BRICK_TYPE.INDESTRUCTIBLE) continue;
       b.alive = false;
-      score += currentStage;
       if (b.type !== BRICK_TYPE.BOSS) {
         gold += Math.ceil((b.trait === 'gold' ? GOLD.TRAIT_REWARD : 1) * effects.goldMult);
       }
