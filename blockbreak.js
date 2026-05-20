@@ -100,14 +100,14 @@ const STAGE_LAYOUTS = { 1: [3, 5], 2: [4, 6], 3: [5, 7], 4: [6, 8] };
 
 const COLOR_PRESETS = {
   default: { ball: '#ffe042', brick: '#545454', armor: '#606e80', indestructible: '#805252', hardened: '#63537f', boss: '#000000', paddle: '#ffe042' },
-  pastel:  { ball: '#6b9bd1', brick: '#ffb3ba', armor: '#b8d8ff', indestructible: '#9a9a9a', hardened: '#d4b3e8', boss: '#ff8b94', paddle: '#5a3e2b' },
-  neon:    { ball: '#00ffff', brick: '#ff00ff', armor: '#00bfff', indestructible: '#1a1a1a', hardened: '#b300ff', boss: '#ff0066', paddle: '#ffffff' },
+  pastel:  { ball: '#b7fea9', brick: '#125200', armor: '#15529e', indestructible: '#4f4f4f', hardened: '#513b5e', boss: '#00393d', paddle: '#966c4f' },
+  neon:    { ball: '#e1ff00', brick: '#0400ff', armor: '#1ac6ff', indestructible: '#5c5c5c', hardened: '#bf29ff', boss: '#004c94', paddle: '#e1ff00' },
 };
 
 const BACKGROUND_PRESETS = {
   default: '#2b2b2b',
   space:   'linear-gradient(180deg, #0a0a2e 0%, #1a1a3e 100%)',
-  forest:  'linear-gradient(180deg, #2d5016 0%, #4a7c2a 100%)',
+  forest:  '#112405',
 };
 
 // ─── STATE ────────────────────────────────────────────────────────────────────
