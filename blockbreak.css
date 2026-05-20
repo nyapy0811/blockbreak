@@ -6,42 +6,43 @@ body {
   font-family: sans-serif;
   display: flex;
   justify-content: center;
+  overflow: hidden;
 }
 
 .game-container {
   display: grid;
   gap: 16px;
   align-items: start;
-  grid-template-columns: auto 200px;
-  grid-template-areas:
-    "game-area shop-panel"
-    "legend    .         ";
+  grid-template-columns: 200px auto 200px;
+  grid-template-areas: "legend game-area shop-panel";
 }
 
-.game-area  { grid-area: game-area; }
+.game-area  { grid-area: game-area; min-width: 0; }
 .legend     { grid-area: legend; }
 .shop-panel { grid-area: shop-panel; }
 
 .canvas-wrap {
   position: relative;
-  width: 800px;
-  height: 500px;
+  aspect-ratio: 8 / 5;
 }
 
 #gameCanvas {
   display: block;
+  width: 100%;
+  height: 100%;
   background: #ffffff;
   border: 1px solid #333;
 }
 
 /* ─── OVERLAY ─────────────────────────────────────────────────────────────── */
 .overlay {
-  position: absolute;
+  position: fixed;
   inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   background: rgba(0, 0, 0, 0.45);
+  z-index: 100;
 }
 
 .overlay.hidden { display: none; }
@@ -135,7 +136,7 @@ body {
 
 .shop-right h3 {
   margin: 0 0 4px;
-  font-size: 16px;
+  font-size: 18px;
   text-align: center;
 }
 
@@ -144,7 +145,7 @@ body {
   justify-content: space-between;
   align-items: center;
   gap: 12px;
-  font-size: 14px;
+  font-size: 18px;
 }
 
 .buy-btn {
@@ -161,7 +162,7 @@ body {
 #nextStageBtn {
   margin-top: 10px;
   padding: 10px;
-  font-size: 16px;
+  font-size: 18px;
   font-weight: bold;
   cursor: pointer;
 }
@@ -178,7 +179,7 @@ body {
   height: 110px;
   box-sizing: border-box;
   padding: 12px 14px;
-  font-size: 14px;
+  font-size: 18px;
   cursor: pointer;
   border: 2px solid #d0d0d0;
   background: #fff;
@@ -195,8 +196,8 @@ body {
 .reward-card.picked               { background: #2e7d32; border-color: #1b5e20; color: #fff; cursor: default; }
 .reward-card:disabled:not(.picked){ opacity: 0.4; cursor: default; }
 
-.reward-name { font-weight: bold; font-size: 15px; }
-.reward-desc { font-size: 12px; opacity: 0.8; }
+.reward-name { font-weight: bold; font-size: 18px; }
+.reward-desc { font-size: 18px; opacity: 0.8; }
 
 /* ─── WIN MODAL ───────────────────────────────────────────────────────────── */
 .win-modal {
@@ -236,7 +237,7 @@ body {
 #restartBtn,
 #gameoverRestartBtn {
   padding: 10px 28px;
-  font-size: 16px;
+  font-size: 18px;
   font-weight: bold;
   cursor: pointer;
 }
@@ -244,7 +245,7 @@ body {
 #winMainBtn,
 #gameoverMainBtn {
   padding: 8px 20px;
-  font-size: 14px;
+  font-size: 18px;
   cursor: pointer;
   margin-left: 8px;
 }
@@ -262,7 +263,7 @@ body {
   text-align: left;
 }
 .rules-text {
-  font-size: 14px;
+  font-size: 18px;
   line-height: 1.8;
   color: #333;
   max-height: 360px;
@@ -277,7 +278,7 @@ body {
   color: #fff;
   border: none;
   border-radius: 4px;
-  font-size: 14px;
+  font-size: 18px;
   cursor: pointer;
 }
 #closeRulesBtn:hover { background: #444; }
@@ -294,7 +295,7 @@ body {
   text-align: left;
 }
 .story-text {
-  font-size: 14px;
+  font-size: 18px;
   line-height: 1.8;
   color: #333;
   max-height: 320px;
@@ -309,7 +310,7 @@ body {
   color: #fff;
   border: none;
   border-radius: 4px;
-  font-size: 14px;
+  font-size: 18px;
   cursor: pointer;
 }
 #storyCloseBtn:hover { background: #444; }
@@ -339,7 +340,7 @@ body {
 #openRulesBtn,
 #openSettingsBtn {
   padding: 12px 36px;
-  font-size: 16px;
+  font-size: 18px;
   font-weight: bold;
   cursor: pointer;
   border-radius: 6px;
@@ -376,7 +377,7 @@ body {
 .setting-group > label {
   display: block;
   margin-bottom: 8px;
-  font-size: 13px;
+  font-size: 18px;
   color: #777;
   letter-spacing: 0.05em;
 }
@@ -393,7 +394,7 @@ body {
 .bgm-toggle-btn,
 .sfx-toggle-btn {
   padding: 6px 14px;
-  font-size: 13px;
+  font-size: 18px;
   cursor: pointer;
   border: 2px solid #d0d0d0;
   background: #fff;
@@ -410,10 +411,34 @@ body {
   font-weight: bold;
 }
 
+.color-picker-rows {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 16px;
+  margin-top: 4px;
+}
+
+.color-picker-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 18px;
+}
+
+.color-picker-row input[type="color"] {
+  width: 44px;
+  height: 28px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 2px;
+  background: none;
+}
+
 #closeSettingsBtn {
   margin-top: 16px;
   padding: 10px 28px;
-  font-size: 14px;
+  font-size: 18px;
   font-weight: bold;
   cursor: pointer;
   border-radius: 6px;
@@ -462,12 +487,11 @@ body {
 
 /* ─── LEGEND ──────────────────────────────────────────────────────────────── */
 .legend {
-  margin-top: 12px;
   background: #fff;
   border: 1px solid #ccc;
   padding: 12px 16px;
-  font-size: 13px;
-  width: 800px;
+  font-size: 18px;
+  width: 200px;
   box-sizing: border-box;
 }
 
@@ -494,7 +518,8 @@ body {
   background: #fff;
   border: 1px solid #ccc;
   padding: 12px 16px;
-  font-size: 14px;
+  font-size: 18px;
+  box-sizing: border-box;
 }
 
 .shop-panel h3 { margin: 0 0 12px; font-size: 16px; }

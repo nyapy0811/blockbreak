@@ -2,7 +2,8 @@
 
 // ─── DOM ──────────────────────────────────────────────────────────────────────
 const dom = {
-  canvas:   document.getElementById('gameCanvas'),
+  canvas:     document.getElementById('gameCanvas'),
+  canvasWrap: document.querySelector('.canvas-wrap'),
   stage:    document.getElementById('stage'),
   timer:    document.getElementById('timer'),
   score:    document.getElementById('score'),
@@ -54,6 +55,7 @@ const dom = {
   legendHardened:     document.getElementById('legend-hardened'),
   rewardCards:        Array.from(document.querySelectorAll('.reward-card')),
   pickedItems:        document.getElementById('picked-items'),
+  customColorGroup:   document.getElementById('customColorGroup'),
 };
 
 const ctx = dom.canvas.getContext('2d');
@@ -102,12 +104,14 @@ const COLOR_PRESETS = {
   default: { ball: '#ffe042', brick: '#545454', armor: '#606e80', indestructible: '#805252', hardened: '#63537f', boss: '#000000', paddle: '#ffe042' },
   pastel:  { ball: '#b7fea9', brick: '#125200', armor: '#15529e', indestructible: '#4f4f4f', hardened: '#513b5e', boss: '#00393d', paddle: '#966c4f' },
   neon:    { ball: '#e1ff00', brick: '#0400ff', armor: '#1ac6ff', indestructible: '#5c5c5c', hardened: '#bf29ff', boss: '#004c94', paddle: '#e1ff00' },
+  custom:  { ball: '#ffe042', brick: '#545454', armor: '#606e80', indestructible: '#805252', hardened: '#63537f', boss: '#000000', paddle: '#ffe042' },
 };
 
 const BACKGROUND_PRESETS = {
   default: '#2b2b2b',
   space:   'linear-gradient(180deg, #0a0a2e 0%, #1a1a3e 100%)',
   forest:  '#112405',
+  custom:  '#2b2b2b',
 };
 
 // ─── STATE ────────────────────────────────────────────────────────────────────
@@ -1113,6 +1117,18 @@ function updateBoss(dt) {
     dom.canvas.style.background = BACKGROUND_PRESETS[settings.backgroundTheme];
   }
 
+  function syncColorPickers() {
+    document.getElementById('cp-ball').value           = settings.ballColor;
+    document.getElementById('cp-brick').value          = settings.brickColor;
+    document.getElementById('cp-armor').value          = settings.armorColor;
+    document.getElementById('cp-indestructible').value = settings.indestructibleColor;
+    document.getElementById('cp-hardened').value       = settings.hardenedColor;
+    document.getElementById('cp-boss').value           = settings.bossColor;
+    document.getElementById('cp-paddle').value         = settings.paddleColor;
+    const bg = BACKGROUND_PRESETS[settings.backgroundTheme] ?? '#2b2b2b';
+    document.getElementById('cp-bg').value = bg.startsWith('#') ? bg : '#2b2b2b';
+  }
+
   document.querySelectorAll('.theme-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const p = COLOR_PRESETS[btn.dataset.preset];
@@ -1128,7 +1144,31 @@ function updateBoss(dt) {
       settings.backgroundTheme = bg;
       updateLegendColors();
       applyBackground();
+      dom.customColorGroup.style.display = btn.dataset.preset === 'custom' ? '' : 'none';
+      if (btn.dataset.preset === 'custom') syncColorPickers();
     });
+  });
+
+  [
+    ['cp-ball',           'ballColor',           'ball'],
+    ['cp-brick',          'brickColor',          'brick'],
+    ['cp-armor',          'armorColor',          'armor'],
+    ['cp-indestructible', 'indestructibleColor', 'indestructible'],
+    ['cp-hardened',       'hardenedColor',       'hardened'],
+    ['cp-boss',           'bossColor',           'boss'],
+    ['cp-paddle',         'paddleColor',         'paddle'],
+  ].forEach(([id, settingKey, presetKey]) => {
+    document.getElementById(id).addEventListener('input', e => {
+      settings[settingKey] = e.target.value;
+      COLOR_PRESETS.custom[presetKey] = e.target.value;
+      if (['armorColor', 'indestructibleColor', 'hardenedColor'].includes(settingKey)) updateLegendColors();
+      draw();
+    });
+  });
+  document.getElementById('cp-bg').addEventListener('input', e => {
+    BACKGROUND_PRESETS.custom = e.target.value;
+    settings.backgroundTheme = 'custom';
+    applyBackground();
   });
 
   document.querySelectorAll('.bgm-toggle-btn').forEach(btn => {
@@ -1187,6 +1227,9 @@ function updateBoss(dt) {
   dom.openSettingsBtn.addEventListener('click', () => {
     if (gameState !== 'main') return;
     hide(dom.mainOverlay); show(dom.settingsOverlay);
+    const isCustom = settings.backgroundTheme === 'custom';
+    dom.customColorGroup.style.display = isCustom ? '' : 'none';
+    if (isCustom) syncColorPickers();
     gameState = 'settings';
   });
 
@@ -1228,12 +1271,22 @@ function updateBoss(dt) {
     gameOver(true);
   });
 
+  // ─── CANVAS RESIZE ────────────────────────────────────────────────────────────
+  function resizeCanvasWrap() {
+    const PAD   = 20 * 2;   // body padding left+right
+    const PANEL = 200 * 2;  // legend + shop-panel
+    const GAP   = 16 * 2;   // two grid gaps
+    const availW       = window.innerWidth  - PAD - PANEL - GAP;
+    const heightBasedW = (window.innerHeight - 20 - 20) * 1.6; // 상단 패딩 20 + 하단 여유 20
+    dom.canvasWrap.style.width = Math.max(0, Math.min(availW, heightBasedW)) + 'px';
+  }
+  resizeCanvasWrap();
+  window.addEventListener('resize', resizeCanvasWrap);
+
   // ─── INIT ─────────────────────────────────────────────────────────────────────
   const dpr = window.devicePixelRatio || 1;
   dom.canvas.width = W * dpr;
   dom.canvas.height = H * dpr;
-  dom.canvas.style.width = W + 'px';
-  dom.canvas.style.height = H + 'px';
   ctx.scale(dpr, dpr);
 
 

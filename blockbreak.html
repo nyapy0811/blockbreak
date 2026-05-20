@@ -63,6 +63,20 @@
                   <button type="button" data-preset="default" data-bg="default" class="theme-btn active">기본</button>
                   <button type="button" data-preset="neon"    data-bg="space"   class="theme-btn">우주</button>
                   <button type="button" data-preset="pastel"  data-bg="forest"  class="theme-btn">숲</button>
+                  <button type="button" data-preset="custom"  data-bg="custom"  class="theme-btn">커스텀</button>
+                </div>
+              </div>
+              <div class="setting-group" id="customColorGroup" style="display:none">
+                <label>색상 직접 설정</label>
+                <div class="color-picker-rows">
+                  <div class="color-picker-row"><span>에너지</span><input type="color" id="cp-ball"></div>
+                  <div class="color-picker-row"><span>스트레스</span><input type="color" id="cp-brick"></div>
+                  <div class="color-picker-row"><span>갑옷</span><input type="color" id="cp-armor"></div>
+                  <div class="color-picker-row"><span>파괴불가</span><input type="color" id="cp-indestructible"></div>
+                  <div class="color-picker-row"><span>강화</span><input type="color" id="cp-hardened"></div>
+                  <div class="color-picker-row"><span>보스</span><input type="color" id="cp-boss"></div>
+                  <div class="color-picker-row"><span>의지</span><input type="color" id="cp-paddle"></div>
+                  <div class="color-picker-row"><span>배경</span><input type="color" id="cp-bg"></div>
                 </div>
               </div>
               <div class="setting-group">
@@ -149,10 +163,6 @@
       <div class="controls">
         <span id="message"></span>
       </div>
-      <div class="test-controls">
-        <span class="test-label">테스트:</span>
-        <button id="testWinBtn">승리 처리</button>
-      </div>
     </div>
     <div class="legend">
       <h3>특수 스트레스</h3>
@@ -168,8 +178,12 @@
         <span class="legend-color" id="legend-hardened" style="background:#7c3aed"></span>
         <span>강화 — HP 2배</span>
       </div>
+      <div class="test-controls">
+        <span class="test-label">테스트:</span>
+        <button id="testWinBtn">승리 처리</button>
+      </div>
     </div>
-    <aside class="shop-panel">
+    <div class="shop-panel">
       <h3>업그레이드</h3>
       <div class="stat-row"><span>에너지 데미지</span><span id="stat-damage">1</span></div>
       <div class="stat-row"><span>의지 크기</span><span id="stat-paddle">100</span></div>
@@ -179,7 +193,7 @@
       <hr>
       <h3>보유 능력</h3>
       <div id="picked-items"></div>
-    </aside>
+    </div>
   </div>
   <audio id="bgmAudio" src="../assets/bgm.mp3" loop preload="auto"></audio>
   <script src="items.js"></script>
