@@ -1,9 +1,9 @@
-// ─── 공 능력 아이템 풀 ───────────────────────────────────────────────────────
+// ─── 특수 능력 풀 ────────────────────────────────────────────────────────────
 // 항목 형식: { id, name, desc, apply }
 //   id    : 고유 식별자 (중복 방지용, 영문)
 //   name  : 상점에 표시되는 이름
 //   desc  : 상점에 표시되는 설명
-//   apply : 아이템 선택 시 실행되는 함수 (stats/effects/paddle 직접 수정)
+//   apply : 특수 능력 선택 시 실행되는 함수 (stats/effects/paddle 직접 수정)
 //
 // 사용 가능한 변수:
 //   stats.ballDamage    — 공 데미지
@@ -22,63 +22,86 @@
 
 const ITEM_POOL = [
   {
-    id: 'bouncy_small',
-    name: '소형 공',
-    desc: '3회 충돌(벽·패드·블록)마다 5회 튕기는 소형 공 1개 생성',
-    apply: () => { effects.bouncyHitsPerSpawn = 3; }
+    id: "bouncy_small",
+    name: "행복은 나눌수록 커져요",
+    desc: "3회 충돌마다 5회 반사하는 소형 에너지 1개 생성",
+    apply: () => {
+      effects.bouncyHitsPerSpawn = 3;
+    },
   },
   {
-    id: 'bigger_stronger',
-    name: '강화 공',
-    desc: '공 크기 +50%, 데미지 +100%',
-    apply: () => { stats.ballRadius *= 1.5; stats.ballDamage *= 2; }
+    id: "bigger_stronger",
+    name: "더 큰 행복!",
+    desc: "에너지 크기 +50%, 데미지 +100%",
+    apply: () => {
+      stats.ballRadius *= 1.5;
+      stats.ballDamage *= 2;
+    },
   },
   {
-    id: 'indest_pierce',
-    name: '파괴자',
-    desc: '파괴 불가 블록 관통',
-    apply: () => { effects.indestructiblePierce = true; }
+    id: "indest_pierce",
+    name: "피할수 없으면 즐겨라",
+    desc: "파괴 불가 스트레스 관통",
+    apply: () => {
+      effects.indestructiblePierce = true;
+    },
   },
   {
-    id: 'splash',
-    name: '폭발',
-    desc: '주변 블록 50% 스플래시 데미지',
-    apply: () => { effects.splashRatio = 0.5; }
+    id: "splash",
+    name: "행복을 퍼트리자",
+    desc: "충돌 시 인접 스트레스에 50% 스플래시 데미지",
+    apply: () => {
+      effects.splashRatio = 0.5;
+    },
   },
   {
-    id: 'sniper',
-    name: '저격',
-    desc: '5초마다 메인 공 위치에서 가장 가까운 블록 방향으로 직선 발사, 메인 공 2배 속도 (충돌 시 소멸)',
-    apply: () => { effects.sniperInterval = 5; }
+    id: "sniper",
+    name: "고통의 원인 제거",
+    desc: "3초마다 가장 가까운 스트레스으로 에너지 발사 (메인 공 2배 속도, 충돌 시 소멸)",
+    apply: () => {
+      effects.sniperInterval = 3;
+    },
   },
   {
-    id: 'speed_gold',
-    name: '쾌속',
-    desc: '공 속도 +100%, 골드 +200%',
-    apply: () => { effects.ballSpeedMult *= 2; effects.goldMult += 2; }
+    id: "speed_gold",
+    name: "일단 달려!",
+    desc: "에너지 속도 +100%, 행복 조각 획득 +200%",
+    apply: () => {
+      effects.ballSpeedMult *= 2;
+      effects.goldMult += 2;
+    },
   },
   {
-    id: 'pierce_start',
-    name: '돌격',
-    desc: '벽에 처음 부딪히기 전까지 블록 통과 (데미지 없음)',
-    apply: () => { effects.firstWallPierce = true; }
+    id: "pierce_start",
+    name: "행복은 멈추지 않아	",
+    desc: "첫 벽 충돌 전까지 스트레스 통과 (데미지 없음)",
+    apply: () => {
+      effects.firstWallPierce = true;
+    },
   },
   {
-    id: 'small_paddle',
-    name: '도전',
-    desc: '패드 크기 -50%, 골드 +150%',
-    apply: () => { paddle.w *= 0.5; effects.goldMult += 1.5; }
+    id: "small_paddle",
+    name: "중요한건 꺽이지 않는 마음",
+    desc: "의지 크기 -50%, 행복 조각 획득 +150%",
+    apply: () => {
+      paddle.w *= 0.5;
+      effects.goldMult += 1.5;
+    },
   },
   {
-    id: 'rapid_fire',
-    name: '연사',
-    desc: '1초마다 메인 공 위치에서 가장 가까운 블록 방향으로 직선 발사 (데미지 0.2배, 충돌 시 소멸)',
-    apply: () => { effects.rapidFireInterval = 1; }
+    id: "rapid_fire",
+    name: "행복 흩뿌리기",
+    desc: "1초마다 가장 가까운 스트레스에 에너지 발사 (데미지 0.2배, 충돌 시 소멸)",
+    apply: () => {
+      effects.rapidFireInterval = 1;
+    },
   },
   {
-    id: 'clone_ball',
-    name: '분신술',
-    desc: '30초마다 메인 공을 1개 추가 복제',
-    apply: () => { effects.cloneBallInterval = 30; }
+    id: "clone_ball",
+    name: "점점더 행복해져요	",
+    desc: "30초마다 행복 에너지를 1개 추가 복제",
+    apply: () => {
+      effects.cloneBallInterval = 30;
+    },
   },
 ];

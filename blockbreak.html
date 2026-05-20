@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>벽돌깨기</title>
+  <title>행복을 찾아서</title>
   <link rel="stylesheet" href="blockbreak.css">
 </head>
 <body>
@@ -13,15 +13,41 @@
         <div class="canvas-hud">
           <span id="stage">스테이지: 1</span>
           <span id="timer" class="hidden"></span>
-          <span id="score">점수: 0</span>
+          <span id="score">행복도: 0</span>
         </div>
-        <div id="mainOverlay" class="overlay">
+        <div id="storyOverlay" class="overlay">
+          <div class="story-modal">
+            <div class="story-text">
+              <!-- 여기에 스토리를 직접 작성하세요 -->
+              <p>우리는 사람들의 마음이에요.</p>
+              <p>우리의 목표는 사람들을 행복하게 만들어주는 것이에요.</p>
+              <p>그런데 스트레스가 사람들의 행복을 방해하네요.</p>
+              <p>그래서 우리는 스트레스의 주범인 나쁜 기억을 정화하러 모험을 떠났습니다.</p>
+            </div>
+            <button id="storyCloseBtn">시작하기</button>
+          </div>
+        </div>
+        <div id="mainOverlay" class="overlay hidden">
           <div class="main-modal">
-            <h1>벽돌깨기</h1>
+            <h1>행복을 찾아서</h1>
             <div class="main-buttons">
               <button id="newGameBtn">새 게임</button>
+              <button id="openRulesBtn">게임 규칙</button>
               <button id="openSettingsBtn">설정</button>
             </div>
+          </div>
+        </div>
+        <div id="rulesOverlay" class="overlay hidden">
+          <div class="rules-modal">
+            <div class="rules-text">
+              <!-- 여기에 게임 규칙을 직접 작성하세요 -->
+              <p>의지로 에너지를 튕겨서 스트레스를 정화하세요.</p>
+              <p>의지의 속도와 방향으로 에너지의 각도를 조절할수 있어요.</p>
+              <p>스트레스가 정화되면 행복의 조각을 얻을수 있어요.</p>
+              <p>행복의 조각으로 업그레이드를 구매하세요.</p>
+              <p>상점에서 특수능력도 고를수 있어요.</p>
+            </div>
+            <button id="closeRulesBtn">닫기</button>
           </div>
         </div>
         <div id="preGameOverlay" class="overlay hidden">
@@ -32,19 +58,11 @@
             <h2>설정</h2>
             <div id="main-settings">
               <div class="setting-group">
-                <label>색상</label>
+                <label>테마</label>
                 <div class="preset-buttons">
-                  <button type="button" data-preset="default" class="preset-btn active">기본</button>
-                  <button type="button" data-preset="pastel"  class="preset-btn">파스텔톤</button>
-                  <button type="button" data-preset="neon"    class="preset-btn">형광색</button>
-                </div>
-              </div>
-              <div class="setting-group">
-                <label>배경</label>
-                <div class="preset-buttons">
-                  <button type="button" data-bg="default" class="bg-preset-btn active">기본</button>
-                  <button type="button" data-bg="space"   class="bg-preset-btn">우주</button>
-                  <button type="button" data-bg="forest"  class="bg-preset-btn">숲</button>
+                  <button type="button" data-preset="default" data-bg="default" class="theme-btn active">기본</button>
+                  <button type="button" data-preset="neon"    data-bg="space"   class="theme-btn">우주</button>
+                  <button type="button" data-preset="pastel"  data-bg="forest"  class="theme-btn">숲</button>
                 </div>
               </div>
               <div class="setting-group">
@@ -74,7 +92,7 @@
         <div id="winOverlay" class="overlay hidden">
           <div class="win-modal">
             <h2>Winner!</h2>
-            <p>점수: <span id="win-score">0</span></p>
+            <p>행복도: <span id="win-score">0</span></p>
             <button id="restartBtn">재시작</button>
             <button id="winMainBtn">메인으로</button>
           </div>
@@ -89,13 +107,13 @@
         <div id="shopOverlay" class="overlay hidden">
           <div class="shop-modal">
             <div class="shop-left">
-              <h2>상점 (골드: <span id="shop-gold">0</span>)</h2>
+              <h2>상점 (행복의 조각: <span id="shop-gold">0</span>)</h2>
               <div class="shop-item">
-                <span>공 데미지 +1</span>
+                <span>에너지 데미지 +1</span>
                 <button id="buy-damage" class="buy-btn"><span id="price-damage">5</span> G</button>
               </div>
               <div class="shop-item">
-                <span>패드 크기 +20</span>
+                <span>의지 크기 +20</span>
                 <button id="buy-paddle" class="buy-btn"><span id="price-paddle">5</span> G</button>
               </div>
               <div class="shop-item">
@@ -109,7 +127,7 @@
               <button id="nextStageBtn">다음 스테이지</button>
             </div>
             <div class="shop-right" id="rewardSection">
-              <h3>무작위 아이템</h3>
+              <h3>무작위 특수 능력</h3>
               <div class="reward-cards">
                 <button type="button" class="reward-card" data-slot="0">
                   <span class="reward-name">?</span>
@@ -137,14 +155,14 @@
       </div>
     </div>
     <div class="legend">
-      <h3>특수 블록</h3>
+      <h3>특수 스트레스</h3>
       <div class="legend-row">
         <span class="legend-color" id="legend-armor" style="background:#7fb3ff"></span>
         <span>갑옷 — 한 번에 1 데미지만 받음 (HP 3 고정)</span>
       </div>
       <div class="legend-row">
         <span class="legend-color" id="legend-indestructible" style="background:#3a3a3a"></span>
-        <span>파괴 불가 — 점수 없이 튕김만, 클리어 조건 제외</span>
+        <span>파괴 불가 — 파괴되지 않음, 클리어 조건 제외</span>
       </div>
       <div class="legend-row">
         <span class="legend-color" id="legend-hardened" style="background:#7c3aed"></span>
@@ -153,13 +171,13 @@
     </div>
     <aside class="shop-panel">
       <h3>업그레이드</h3>
-      <div class="stat-row"><span>공 데미지</span><span id="stat-damage">1</span></div>
-      <div class="stat-row"><span>패드 크기</span><span id="stat-paddle">100</span></div>
+      <div class="stat-row"><span>에너지 데미지</span><span id="stat-damage">1</span></div>
+      <div class="stat-row"><span>의지 크기</span><span id="stat-paddle">100</span></div>
       <div class="stat-row"><span>황금 타일</span><span id="stat-goldchance">0</span></div>
       <hr>
-      <div class="stat-row"><span>골드</span><span id="stat-gold">0</span></div>
+      <div class="stat-row"><span>행복 조각</span><span id="stat-gold">0</span></div>
       <hr>
-      <h3>보유 아이템</h3>
+      <h3>보유 능력</h3>
       <div id="picked-items"></div>
     </aside>
   </div>

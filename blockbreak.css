@@ -45,6 +45,7 @@ body {
 }
 
 .overlay.hidden { display: none; }
+#timer.hidden   { display: none; }
 
 /* ─── HUD ─────────────────────────────────────────────────────────────────── */
 .canvas-hud {
@@ -60,6 +61,7 @@ body {
 }
 
 .canvas-hud #stage,
+.canvas-hud #timer,
 .canvas-hud #score {
   background: rgba(0, 0, 0, 0.55);
   color: #fff;
@@ -248,6 +250,70 @@ body {
 }
 
 /* ─── MAIN MODAL ──────────────────────────────────────────────────────────── */
+.rules-modal {
+  background: #fff;
+  padding: 48px 56px;
+  border-radius: 8px;
+  max-width: 560px;
+  width: 90%;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  text-align: left;
+}
+.rules-text {
+  font-size: 14px;
+  line-height: 1.8;
+  color: #333;
+  max-height: 360px;
+  overflow-y: auto;
+}
+.rules-text p { margin: 0 0 12px; }
+.rules-text p:last-child { margin-bottom: 0; }
+#closeRulesBtn {
+  align-self: flex-end;
+  padding: 10px 28px;
+  background: #222;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+}
+#closeRulesBtn:hover { background: #444; }
+
+.story-modal {
+  background: #fff;
+  padding: 48px 56px;
+  border-radius: 8px;
+  max-width: 560px;
+  width: 90%;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  text-align: left;
+}
+.story-text {
+  font-size: 14px;
+  line-height: 1.8;
+  color: #333;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.story-text p { margin: 0 0 12px; }
+.story-text p:last-child { margin-bottom: 0; }
+#storyCloseBtn {
+  align-self: flex-end;
+  padding: 10px 28px;
+  background: #222;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+}
+#storyCloseBtn:hover { background: #444; }
+
 .main-modal {
   background: #fff;
   padding: 56px 64px;
@@ -270,6 +336,7 @@ body {
 }
 
 #newGameBtn,
+#openRulesBtn,
 #openSettingsBtn {
   padding: 12px 36px;
   font-size: 16px;
@@ -321,6 +388,7 @@ body {
 }
 
 .preset-btn,
+.theme-btn,
 .bg-preset-btn,
 .bgm-toggle-btn,
 .sfx-toggle-btn {
@@ -333,6 +401,7 @@ body {
 }
 
 .preset-btn.active,
+.theme-btn.active,
 .bg-preset-btn.active,
 .bgm-toggle-btn.active,
 .sfx-toggle-btn.active {

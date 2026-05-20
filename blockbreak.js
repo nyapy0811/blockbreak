@@ -12,6 +12,8 @@ const dom = {
   statGold:       document.getElementById('stat-gold'),
   statGoldChance: document.getElementById('stat-goldchance'),
 
+  storyOverlay:    document.getElementById('storyOverlay'),
+  storyCloseBtn:   document.getElementById('storyCloseBtn'),
   mainOverlay:     document.getElementById('mainOverlay'),
   preGameOverlay:  document.getElementById('preGameOverlay'),
   settingsOverlay: document.getElementById('settingsOverlay'),
@@ -39,6 +41,9 @@ const dom = {
   winMainBtn:         document.getElementById('winMainBtn'),
   gameoverMainBtn:    document.getElementById('gameoverMainBtn'),
   newGameBtn:         document.getElementById('newGameBtn'),
+  openRulesBtn:       document.getElementById('openRulesBtn'),
+  closeRulesBtn:      document.getElementById('closeRulesBtn'),
+  rulesOverlay:       document.getElementById('rulesOverlay'),
   openSettingsBtn:    document.getElementById('openSettingsBtn'),
   startGameBtn:       document.getElementById('startGameBtn'),
   closeSettingsBtn:   document.getElementById('closeSettingsBtn'),
@@ -66,6 +71,11 @@ const BOSS = {
   HIT_COOLDOWN_MS: 100,
 };
 
+const BLOOM = {
+  size:    50,  // 글로우가 공 바깥으로 번지는 거리 (px)
+  opacity: 0.2, // 글로우 중심부 불투명도 (0~1)
+};
+
 const PADDLE_SPIN = {
   FACTOR:           0.05,
   MAX_ANGLE:        Math.PI / 4,
@@ -89,13 +99,13 @@ const BRICK_TYPE = {
 const STAGE_LAYOUTS = { 1: [3, 5], 2: [4, 6], 3: [5, 7], 4: [6, 8] };
 
 const COLOR_PRESETS = {
-  default: { ball: '#222222', brick: '#e63946', armor: '#7fb3ff', indestructible: '#3a3a3a', hardened: '#7c3aed', boss: '#b51b00' },
-  pastel:  { ball: '#6b9bd1', brick: '#ffb3ba', armor: '#b8d8ff', indestructible: '#9a9a9a', hardened: '#d4b3e8', boss: '#ff8b94' },
-  neon:    { ball: '#00ffff', brick: '#ff00ff', armor: '#00bfff', indestructible: '#1a1a1a', hardened: '#b300ff', boss: '#ff0066' },
+  default: { ball: '#ffe042', brick: '#545454', armor: '#606e80', indestructible: '#805252', hardened: '#63537f', boss: '#000000', paddle: '#ffe042' },
+  pastel:  { ball: '#6b9bd1', brick: '#ffb3ba', armor: '#b8d8ff', indestructible: '#9a9a9a', hardened: '#d4b3e8', boss: '#ff8b94', paddle: '#5a3e2b' },
+  neon:    { ball: '#00ffff', brick: '#ff00ff', armor: '#00bfff', indestructible: '#1a1a1a', hardened: '#b300ff', boss: '#ff0066', paddle: '#ffffff' },
 };
 
 const BACKGROUND_PRESETS = {
-  default: '#ffffff',
+  default: '#2b2b2b',
   space:   'linear-gradient(180deg, #0a0a2e 0%, #1a1a3e 100%)',
   forest:  'linear-gradient(180deg, #2d5016 0%, #4a7c2a 100%)',
 };
@@ -122,6 +132,7 @@ const settings = {
   indestructibleColor: COLOR_PRESETS.default.indestructible,
   hardenedColor:       COLOR_PRESETS.default.hardened,
   bossColor:           COLOR_PRESETS.default.boss,
+  paddleColor:         COLOR_PRESETS.default.paddle,
   backgroundTheme:     'default',
   bgmEnabled:          true,
   sfxEnabled:          true,
@@ -179,6 +190,24 @@ const shopState = {
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 const show = el => el.classList.remove('hidden');
 const hide = el => el.classList.add('hidden');
+
+function complementaryColor(hex) {
+  const r = 255 - parseInt(hex.slice(1, 3), 16);
+  const g = 255 - parseInt(hex.slice(3, 5), 16);
+  const b = 255 - parseInt(hex.slice(5, 7), 16);
+  return `#${r.toString(16).padStart(2,'0')}${g.toString(16).padStart(2,'0')}${b.toString(16).padStart(2,'0')}`;
+}
+
+function blendToWhite(hex, ratio) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  const t = 1 - ratio;
+  const rr = Math.round(r + (255 - r) * t);
+  const gg = Math.round(g + (255 - g) * t);
+  const bb = Math.round(b + (255 - b) * t);
+  return `#${rr.toString(16).padStart(2,'0')}${gg.toString(16).padStart(2,'0')}${bb.toString(16).padStart(2,'0')}`;
+}
 
 function stageBallSpeed() {
   const speeds = [0, 4, 4.5, 5, 5.5, 6];
@@ -696,17 +725,36 @@ function updateBoss(dt) {
   }
 
   function drawBalls() {
+    const alphaHex = Math.round(BLOOM.opacity * 255).toString(16).padStart(2, '0');
+    // 코어를 먼저 그림 (벽돌 위에 표시)
     for (const ball of balls) {
+      ctx.fillStyle = ball.color;
       ctx.beginPath();
       ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
-      ctx.fillStyle = ball.color;
       ctx.fill();
       ctx.closePath();
     }
+    // 글로우: destination-over로 벽돌 뒤에만 표시
+    ctx.globalCompositeOperation = 'destination-over';
+    for (const ball of balls) {
+      const grad = ctx.createRadialGradient(
+        ball.x, ball.y, 0,
+        ball.x, ball.y, ball.r + BLOOM.size
+      );
+      grad.addColorStop(0,                               ball.color + alphaHex);
+      grad.addColorStop(ball.r / (ball.r + BLOOM.size), ball.color + alphaHex);
+      grad.addColorStop(1,                               ball.color + '00');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(ball.x, ball.y, ball.r + BLOOM.size, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.closePath();
+    }
+    ctx.globalCompositeOperation = 'source-over';
   }
 
   function drawPaddle() {
-    ctx.fillStyle = '#000';
+    ctx.fillStyle = settings.paddleColor;
     ctx.fillRect(paddle.x, paddle.y, paddle.w, paddle.h);
   }
 
@@ -721,9 +769,11 @@ function updateBoss(dt) {
     ctx.textBaseline = 'middle';
     for (const b of bricks) {
       if (!b.alive) continue;
-      ctx.fillStyle = b.color;
+      const hpRatio = isFinite(b.hp) && b.maxHp > 0 ? b.hp / b.maxHp : 1;
+      const displayColor = blendToWhite(b.color, hpRatio);
+      ctx.fillStyle = displayColor;
       ctx.fillRect(b.x, b.y, b.w, b.h);
-      ctx.strokeStyle = '#000';
+      ctx.strokeStyle = complementaryColor(displayColor);
       ctx.lineWidth = 2;
       ctx.strokeRect(b.x, b.y, b.w, b.h);
       if (b.trait === 'gold') {
@@ -794,6 +844,7 @@ function updateBoss(dt) {
     initBricks();
     dom.message.textContent = '';
     hide(dom.timer);
+    dom.timer.textContent = '';
     updateScoreDisplay(); updateStageDisplay(); updateStatsDisplay();
     gameState = 'ready';
   }
@@ -1062,26 +1113,20 @@ function updateBoss(dt) {
     dom.canvas.style.background = BACKGROUND_PRESETS[settings.backgroundTheme];
   }
 
-  document.querySelectorAll('.preset-btn').forEach(btn => {
+  document.querySelectorAll('.theme-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const p = COLOR_PRESETS[btn.dataset.preset];
-      if (!p) return;
-      document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+      const bg = btn.dataset.bg;
+      if (!p || !BACKGROUND_PRESETS[bg]) return;
+      document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       Object.assign(settings, {
         ballColor: p.ball, brickColor: p.brick, armorColor: p.armor,
         indestructibleColor: p.indestructible, hardenedColor: p.hardened, bossColor: p.boss,
+        paddleColor: p.paddle,
       });
+      settings.backgroundTheme = bg;
       updateLegendColors();
-    });
-  });
-
-  document.querySelectorAll('.bg-preset-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      if (!BACKGROUND_PRESETS[btn.dataset.bg]) return;
-      document.querySelectorAll('.bg-preset-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      settings.backgroundTheme = btn.dataset.bg;
       applyBackground();
     });
   });
@@ -1119,11 +1164,24 @@ function updateBoss(dt) {
   dom.winMainBtn.addEventListener('click', () => { if (gameState === 'won') returnToMain(); });
   dom.gameoverMainBtn.addEventListener('click', () => { if (gameState === 'gameover') returnToMain(); });
 
+  dom.storyCloseBtn.addEventListener('click', () => {
+    hide(dom.storyOverlay);
+    show(dom.mainOverlay);
+  });
+
   dom.newGameBtn.addEventListener('click', () => {
     if (gameState !== 'main') return;
     fullReset(); resetGame(); draw();
     hide(dom.mainOverlay); show(dom.preGameOverlay);
     gameState = 'preGame';
+  });
+
+  dom.openRulesBtn.addEventListener('click', () => {
+    if (gameState !== 'main') return;
+    hide(dom.mainOverlay); show(dom.rulesOverlay);
+  });
+  dom.closeRulesBtn.addEventListener('click', () => {
+    hide(dom.rulesOverlay); show(dom.mainOverlay);
   });
 
   dom.openSettingsBtn.addEventListener('click', () => {
