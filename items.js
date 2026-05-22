@@ -65,9 +65,9 @@ const ITEM_POOL = [
   {
     id: "speed_gold",
     name: "일단 달려!",
-    desc: "에너지 속도 +100%, 행복 조각 획득 +200%",
+    desc: "에너지 속도 +50%, 행복 조각 획득 +200%",
     apply: () => {
-      effects.ballSpeedMult *= 2;
+      effects.ballSpeedMult *= 1.5;
       effects.goldMult += 2;
     },
   },

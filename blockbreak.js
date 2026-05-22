@@ -69,7 +69,7 @@ const BOSS = {
   TIME_LIMIT_SEC: 180,
   W:              (600 / 8) * 2,
   H:              200 / 6,
-  HP:             150,
+  HP:             400,
   HIT_COOLDOWN_MS: 100,
 };
 
@@ -777,13 +777,23 @@ function updateBoss(dt) {
     ctx.fillRect(0, H - 4, W, 4);
   }
 
+  function brickBaseColor(b) {
+    switch (b.type) {
+      case BRICK_TYPE.ARMOR:          return settings.armorColor;
+      case BRICK_TYPE.INDESTRUCTIBLE: return settings.indestructibleColor;
+      case BRICK_TYPE.HARDENED:       return settings.hardenedColor;
+      case BRICK_TYPE.BOSS:           return settings.bossColor;
+      default:                        return settings.brickColor;
+    }
+  }
+
   function drawBricks() {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     for (const b of bricks) {
       if (!b.alive) continue;
       const hpRatio = isFinite(b.hp) && b.maxHp > 0 ? b.hp / b.maxHp : 1;
-      const displayColor = blendToWhite(b.color, hpRatio);
+      const displayColor = blendToWhite(brickBaseColor(b), hpRatio);
       ctx.fillStyle = displayColor;
       ctx.fillRect(b.x, b.y, b.w, b.h);
       ctx.strokeStyle = complementaryColor(displayColor);
