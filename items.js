@@ -24,7 +24,7 @@ const ITEM_POOL = [
   {
     id: "bouncy_small",
     name: "행복은 나눌수록 커져요",
-    desc: "3회 충돌마다 5회 반사하는 소형 에너지 1개 생성",
+    desc: "3회 충돌마다 소형 에너지 1개 생성 (5회 충돌 소멸)",
     apply: () => {
       effects.bouncyHitsPerSpawn = 3;
     },
@@ -57,7 +57,7 @@ const ITEM_POOL = [
   {
     id: "sniper",
     name: "고통의 원인 제거",
-    desc: "3초마다 가장 가까운 스트레스으로 에너지 발사 (메인 공 2배 속도, 충돌 시 소멸)",
+    desc: "3초마다 가장 가까운 스트레스에 소형 에너지 발사 (속도 +100%, 1회 충돌 소멸)",
     apply: () => {
       effects.sniperInterval = 3;
     },
@@ -74,7 +74,7 @@ const ITEM_POOL = [
   {
     id: "pierce_start",
     name: "행복은 멈추지 않아	",
-    desc: "첫 벽 충돌 전까지 스트레스 통과 (데미지 없음)",
+    desc: "첫 벽 충돌 전까지 스트레스 통과",
     apply: () => {
       effects.firstWallPierce = true;
     },
@@ -91,17 +91,25 @@ const ITEM_POOL = [
   {
     id: "rapid_fire",
     name: "행복 흩뿌리기",
-    desc: "1초마다 가장 가까운 스트레스에 에너지 발사 (데미지 0.2배, 충돌 시 소멸)",
+    desc: "1초마다 가장 가까운 스트레스에 소형 에너지 발사 (데미지 -80%, 1회 충돌 소멸)",
     apply: () => {
       effects.rapidFireInterval = 1;
     },
   },
   {
     id: "clone_ball",
-    name: "점점더 행복해져요	",
+    name: "점점더 행복해져요",
     desc: "30초마다 행복 에너지를 1개 추가 복제",
     apply: () => {
       effects.cloneBallInterval = 30;
+    },
+  },
+  {
+    id: "pierce",
+    name: "행복은 멈추지 않아",
+    desc: "에너지가 스트레스랑 충돌 시 스트레스가 정화되면 에너지가 튕기지 않음",
+    apply: () => {
+      effects.pierceOnDestroy = true;
     },
   },
 ];

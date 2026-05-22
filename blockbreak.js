@@ -176,6 +176,7 @@ const effects = {
   firstWallPierce:      false,
   goldMult:             1,
   ballSpeedMult:        1,
+  pierceOnDestroy:      false,
 };
 
 const effectsState = {
@@ -469,33 +470,38 @@ function applySplash(b, ball) {
 }
 
 // ─── COLLISION ────────────────────────────────────────────────────────────────
-function reflectOffBlock(ball, b) {
-  const overlapLeft   = (ball.x + ball.r) - b.x;
-  const overlapRight  = (b.x + b.w) - (ball.x - ball.r);
-  const overlapTop    = (ball.y + ball.r) - b.y;
-  const overlapBottom = (b.y + b.h) - (ball.y - ball.r);
-  const min = Math.min(overlapLeft, overlapRight, overlapTop, overlapBottom);
+function reflectOffBlock(ball, b, prevX, prevY) {
+  // 이전 위치 기준으로 진입 방향 판단
+  const wasLeft   = prevX + ball.r <= b.x;
+  const wasRight  = prevX - ball.r >= b.x + b.w;
+  const wasTop    = prevY + ball.r <= b.y;
+  const wasBottom = prevY - ball.r >= b.y + b.h;
 
-  if (min === overlapLeft) {
-    const tx = b.x - ball.r;
-    if (tx < ball.r) { ball.x = b.x + b.w + ball.r; ball.dx =  Math.abs(ball.dx); }
-    else             { ball.x = tx;                  ball.dx = -Math.abs(ball.dx); }
-  } else if (min === overlapRight) {
-    const tx = b.x + b.w + ball.r;
-    if (tx > W - ball.r) { ball.x = b.x - ball.r; ball.dx = -Math.abs(ball.dx); }
-    else                 { ball.x = tx;             ball.dx =  Math.abs(ball.dx); }
-  } else if (min === overlapTop) {
-    const ty = b.y - ball.r;
-    if (ty < ball.r) { ball.y = b.y + b.h + ball.r; ball.dy =  Math.abs(ball.dy); }
-    else             { ball.y = ty;                   ball.dy = -Math.abs(ball.dy); }
+  const horizEntry = (wasLeft || wasRight) && !(wasTop || wasBottom);
+  const vertEntry  = (wasTop || wasBottom) && !(wasLeft || wasRight);
+
+  if (horizEntry) {
+    if (wasLeft) { ball.x = b.x - ball.r;       ball.dx = -Math.abs(ball.dx); }
+    else         { ball.x = b.x + b.w + ball.r; ball.dx =  Math.abs(ball.dx); }
+  } else if (vertEntry) {
+    if (wasTop)  { ball.y = b.y - ball.r;       ball.dy = -Math.abs(ball.dy); }
+    else         { ball.y = b.y + b.h + ball.r; ball.dy =  Math.abs(ball.dy); }
   } else {
-    const ty = b.y + b.h + ball.r;
-    if (ty > H - ball.r) { ball.y = b.y - ball.r; ball.dy = -Math.abs(ball.dy); }
-    else                 { ball.y = ty;             ball.dy =  Math.abs(ball.dy); }
+    // 코너 진입 또는 이미 겹쳐있는 경우: 최소 겹침으로 판단
+    const overlapLeft   = (ball.x + ball.r) - b.x;
+    const overlapRight  = (b.x + b.w) - (ball.x - ball.r);
+    const overlapTop    = (ball.y + ball.r) - b.y;
+    const overlapBottom = (b.y + b.h) - (ball.y - ball.r);
+    const min = Math.min(overlapLeft, overlapRight, overlapTop, overlapBottom);
+
+    if (min === overlapLeft)       { ball.x = b.x - ball.r;       ball.dx = -Math.abs(ball.dx); }
+    else if (min === overlapRight) { ball.x = b.x + b.w + ball.r; ball.dx =  Math.abs(ball.dx); }
+    else if (min === overlapTop)   { ball.y = b.y - ball.r;       ball.dy = -Math.abs(ball.dy); }
+    else                           { ball.y = b.y + b.h + ball.r; ball.dy =  Math.abs(ball.dy); }
   }
 }
 
-function collideBricks(ball) {
+function collideBricks(ball, prevX, prevY) {
   for (const b of bricks) {
     if (!b.alive) continue;
     if (effects.indestructiblePierce && isMainBall(ball) && b.type === BRICK_TYPE.INDESTRUCTIBLE) continue;
@@ -503,6 +509,7 @@ function collideBricks(ball) {
           ball.y + ball.r > b.y && ball.y - ball.r < b.y + b.h)) continue;
     if (ball.pierce) continue;
 
+    let destroyed = false;
     if (b.type === BRICK_TYPE.INDESTRUCTIBLE) {
       playSfx('brickHit');
       applySplash(b, ball);
@@ -518,7 +525,7 @@ function collideBricks(ball) {
         playSfx('brickHit');
       } else {
         const primaryDmg = b.type === BRICK_TYPE.ARMOR ? 1 : Math.ceil(stats.ballDamage * (ball.damageMult ?? 1));
-        const destroyed  = dealDamageToBlock(b, primaryDmg);
+        destroyed = dealDamageToBlock(b, primaryDmg);
         playSfx(!isBoss && b.trait === 'gold' && destroyed ? 'goldBrick'
                 : destroyed ? 'brickDestroy' : 'brickHit');
         applySplash(b, ball);
@@ -527,7 +534,9 @@ function collideBricks(ball) {
 
     if (ball.vanishOnHit) { ball.dead = true; return; }
 
-    reflectOffBlock(ball, b);
+    if (!(effects.pierceOnDestroy && destroyed && isMainBall(ball))) {
+      reflectOffBlock(ball, b, prevX, prevY);
+    }
 
     if (ball.bouncesLeft !== undefined && --ball.bouncesLeft <= 0) ball.dead = true;
     incrementBouncyHitCount(ball);
@@ -594,7 +603,7 @@ function updateBall(ball, dt) {
     }
   }
 
-  collideBricks(ball);
+  collideBricks(ball, prevX, prevY);
 }
 
 function updateBoss(dt) {
@@ -864,6 +873,7 @@ function updateBoss(dt) {
       indestructiblePierce: false, splashRatio: 0,
       bouncyHitsPerSpawn: 0, sniperInterval: 0, rapidFireInterval: 0,
       cloneBallInterval: 0, firstWallPierce: false, goldMult: 1, ballSpeedMult: 1,
+      pierceOnDestroy: false,
     });
     effectsState.bouncyHitCount = 0; effectsState.lastSniperSpawnTime = 0; effectsState.lastRapidFireSpawnTime = 0; effectsState.lastCloneBallSpawnTime = 0;
     stageStartTime = null; lastTickSecond = 0;

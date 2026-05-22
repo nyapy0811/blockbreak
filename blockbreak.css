@@ -175,7 +175,7 @@ body {
 }
 
 .reward-card {
-  width: 220px;
+  width: 320px;
   height: 110px;
   box-sizing: border-box;
   padding: 12px 14px;
@@ -197,7 +197,7 @@ body {
 .reward-card:disabled:not(.picked){ opacity: 0.4; cursor: default; }
 
 .reward-name { font-weight: bold; font-size: 18px; }
-.reward-desc { font-size: 18px; opacity: 0.8; }
+.reward-desc { font-size: 12px; opacity: 0.8; }
 
 /* ─── WIN MODAL ───────────────────────────────────────────────────────────── */
 .win-modal {
