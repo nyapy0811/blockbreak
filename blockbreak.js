@@ -19,7 +19,9 @@ const dom = {
   preGameOverlay:  document.getElementById('preGameOverlay'),
   settingsOverlay: document.getElementById('settingsOverlay'),
   confirmOverlay:  document.getElementById('confirmOverlay'),
+  rewardOverlay:   document.getElementById('rewardOverlay'),
   shopOverlay:     document.getElementById('shopOverlay'),
+  confirmRewardBtn: document.getElementById('confirmRewardBtn'),
   winOverlay:      document.getElementById('winOverlay'),
   gameoverOverlay: document.getElementById('gameoverOverlay'),
 
@@ -176,16 +178,23 @@ const brickGrid = {
 };
 
 const effects = {
-  indestructiblePierce: false,
-  splashRatio:          0,
-  bouncyHitsPerSpawn:   0,
-  sniperInterval:       0,
-  rapidFireInterval:    0,
-  cloneBallInterval:    0,
-  firstWallPierce:      false,
-  goldMult:             1,
-  ballSpeedMult:        1,
-  pierceOnDestroy:      false,
+  indestructiblePierce:        false,
+  indestructiblePierceBonus:   0,     // 파괴불가 관통 후 첫 충돌 데미지 배율 추가
+  splashRatio:                 0,
+  splashMoore:                 false, // true = 8방향 스플래시
+  bouncyHitsPerSpawn:          0,
+  bouncyBallBounces:           0,     // 소형 에너지 추가 충돌 횟수
+  sniperInterval:              0,
+  sniperDamageMult:            1,     // 저격 공 데미지 배율
+  rapidFireInterval:           0,
+  rapidFireDamageMult:         0.2,   // 연사 공 데미지 배율
+  cloneBallInterval:           0,
+  firstWallPierce:             false,
+  launchAngleMult:             1,     // 발사 각도 배율
+  goldMult:                    1,
+  ballSpeedMult:               1,
+  pierceOnDestroy:             false,
+  pierceOnDestroySplashRatio:  0,     // 정화 관통 시 스플래시 비율
 };
 
 const effectsState = {
@@ -253,7 +262,7 @@ function spawnBouncyBall(x, y) {
     dx: Math.cos(angle) * speed,
     dy: Math.sin(angle) * speed,
     color: settings.ballColor,
-    bouncesLeft: 5,
+    bouncesLeft: 5 + effects.bouncyBallBounces,
   });
 }
 
@@ -274,6 +283,7 @@ function spawnSniperBall() {
     dy: ddy / dist * speed,
     color: settings.ballColor,
     vanishOnHit: true,
+    damageMult: effects.sniperDamageMult,
   });
 }
 
@@ -294,7 +304,7 @@ function spawnRapidFireBall() {
     dy: ddy / dist * speed,
     color: settings.ballColor,
     vanishOnHit: true,
-    damageMult: 0.2,
+    damageMult: effects.rapidFireDamageMult,
   });
 }
 
@@ -311,13 +321,16 @@ function findNearestBrick(ball) {
   return best;
 }
 
-function findNeighbors(b) {
+function findNeighbors(b, moore = false) {
   return bricks.filter(o => {
     if (o === b || !o.alive) return false;
     const dx = Math.abs(o.x - b.x);
     const dy = Math.abs(o.y - b.y);
-    return (dy < 1 && dx > 0 && dx < b.w * 1.5) ||
-           (dx < 1 && dy > 0 && dy < b.h * 1.5);
+    const cross = (dy < 1 && dx > 0 && dx < b.w * 1.5) ||
+                  (dx < 1 && dy > 0 && dy < b.h * 1.5);
+    if (cross) return true;
+    if (moore) return dx > 0 && dx < b.w * 1.5 && dy > 0 && dy < b.h * 1.5;
+    return false;
   });
 }
 
@@ -472,7 +485,7 @@ function dealDamageToBlock(b, dmg) {
 function applySplash(b, ball) {
   if (!isMainBall(ball) || effects.splashRatio <= 0) return;
   const splashDmg = Math.ceil(stats.ballDamage * effects.splashRatio);
-  for (const n of findNeighbors(b)) {
+  for (const n of findNeighbors(b, effects.splashMoore)) {
     const d = n.type === BRICK_TYPE.ARMOR ? 1 : splashDmg;
     if (d > 0) dealDamageToBlock(n, d);
   }
@@ -513,7 +526,15 @@ function reflectOffBlock(ball, b, prevX, prevY) {
 function collideBricks(ball, prevX, prevY) {
   for (const b of bricks) {
     if (!b.alive) continue;
-    if (effects.indestructiblePierce && isMainBall(ball) && b.type === BRICK_TYPE.INDESTRUCTIBLE) continue;
+    if (effects.indestructiblePierce && isMainBall(ball) && b.type === BRICK_TYPE.INDESTRUCTIBLE) {
+      // 관통 중 보너스 부여
+      if (effects.indestructiblePierceBonus > 0 &&
+          ball.x + ball.r > b.x && ball.x - ball.r < b.x + b.w &&
+          ball.y + ball.r > b.y && ball.y - ball.r < b.y + b.h) {
+        ball.nextHitBonus = effects.indestructiblePierceBonus;
+      }
+      continue;
+    }
     if (!(ball.x + ball.r > b.x && ball.x - ball.r < b.x + b.w &&
           ball.y + ball.r > b.y && ball.y - ball.r < b.y + b.h)) continue;
     if (ball.pierce) continue;
@@ -533,11 +554,20 @@ function collideBricks(ball, prevX, prevY) {
       if (onCooldown) {
         playSfx('brickHit');
       } else {
-        const primaryDmg = b.type === BRICK_TYPE.ARMOR ? 1 : Math.ceil(stats.ballDamage * (ball.damageMult ?? 1));
+        const bonusMult = 1 + (ball.nextHitBonus ?? 0);
+        ball.nextHitBonus = 0;
+        const primaryDmg = b.type === BRICK_TYPE.ARMOR ? 1 : Math.ceil(stats.ballDamage * (ball.damageMult ?? 1) * bonusMult);
         destroyed = dealDamageToBlock(b, primaryDmg);
         playSfx(!isBoss && b.trait === 'gold' && destroyed ? 'goldBrick'
                 : destroyed ? 'brickDestroy' : 'brickHit');
         applySplash(b, ball);
+        // pierceOnDestroy 스플래시
+        if (effects.pierceOnDestroySplashRatio > 0 && destroyed && effects.pierceOnDestroy && isMainBall(ball)) {
+          const pierceSplashDmg = Math.ceil(stats.ballDamage * effects.pierceOnDestroySplashRatio);
+          for (const n of findNeighbors(b)) {
+            dealDamageToBlock(n, n.type === BRICK_TYPE.ARMOR ? 1 : pierceSplashDmg);
+          }
+        }
       }
     }
 
@@ -863,7 +893,7 @@ function updateBoss(dt) {
     paddle.lastFrameX = paddle.x; paddle.lastFrameTime = 0;
     stats.ballSpeed = stageBallSpeed() * effects.ballSpeedMult;
     const speed = stats.ballSpeed;
-    const angleDeg = (20 + Math.random() * 20) * (Math.random() < 0.5 ? 1 : -1);
+    const angleDeg = (20 + Math.random() * 20) * effects.launchAngleMult * (Math.random() < 0.5 ? 1 : -1);
     const angle = angleDeg * Math.PI / 180;
     balls = [createBall(
       paddle.x + paddle.w / 2, paddle.y - stats.ballRadius,
@@ -890,14 +920,19 @@ function updateBoss(dt) {
     shopState.paddleBuys = 0; shopState.goldchanceBuys = 0;
     stageStartTime = null; lastTickSecond = 0;
     Object.assign(effects, {
-      indestructiblePierce: false, splashRatio: 0,
-      bouncyHitsPerSpawn: 0, sniperInterval: 0, rapidFireInterval: 0,
-      cloneBallInterval: 0, firstWallPierce: false, goldMult: 1, ballSpeedMult: 1,
-      pierceOnDestroy: false,
+      indestructiblePierce: false, indestructiblePierceBonus: 0,
+      splashRatio: 0, splashMoore: false,
+      bouncyHitsPerSpawn: 0, bouncyBallBounces: 0,
+      sniperInterval: 0, sniperDamageMult: 1,
+      rapidFireInterval: 0, rapidFireDamageMult: 0.2,
+      cloneBallInterval: 0, firstWallPierce: false,
+      launchAngleMult: 1, goldMult: 1, ballSpeedMult: 1,
+      pierceOnDestroy: false, pierceOnDestroySplashRatio: 0,
     });
     effectsState.bouncyHitCount = 0; effectsState.lastSniperSpawnTime = 0; effectsState.lastRapidFireSpawnTime = 0; effectsState.lastCloneBallSpawnTime = 0;
     stageStartTime = null; lastTickSecond = 0;
     pickedItemIds.clear();
+    for (const k in upgradeLevels) delete upgradeLevels[k];
     updatePickedItemsDisplay();
   }
 
@@ -956,7 +991,7 @@ function updateBoss(dt) {
 
   function returnToMain() {
     [dom.winOverlay, dom.gameoverOverlay, dom.confirmOverlay,
-    dom.shopOverlay, dom.preGameOverlay, dom.settingsOverlay].forEach(hide);
+    dom.rewardOverlay, dom.shopOverlay, dom.preGameOverlay, dom.settingsOverlay].forEach(hide);
     fullReset(); resetGame();
     gameState = 'main';
     show(dom.mainOverlay);
@@ -980,6 +1015,7 @@ function updateBoss(dt) {
     dom.buyPaddle.disabled = gold < priceFor('paddle');
     dom.buyGoldChance.disabled = gold < priceFor('goldchance');
     dom.buyShield.disabled = hasShield || gold < priceFor('shield');
+    updateItemUpgradesUI();
   }
 
   function buy(kind) {
@@ -1007,6 +1043,7 @@ function updateBoss(dt) {
   let currentRewards = [];
   let selectedRewardIdx = null;
   const pickedItemIds = new Set();
+  const upgradeLevels = {};
 
   function rollRandomRewards() {
     const available = ITEM_POOL.filter(i => !pickedItemIds.has(i.id));
@@ -1020,6 +1057,7 @@ function updateBoss(dt) {
   function setupShopRewards() {
     currentRewards = rollRandomRewards();
     selectedRewardIdx = null;
+    dom.confirmRewardBtn.disabled = true;
     for (let i = 0; i < 3; i++) {
       const card = dom.rewardCards[i];
       const item = currentRewards[i];
@@ -1035,6 +1073,7 @@ function updateBoss(dt) {
     if (!item || typeof item.apply !== 'function') return;
     selectedRewardIdx = idx;
     dom.rewardCards.forEach((card, i) => card.classList.toggle('picked', i === idx));
+    dom.confirmRewardBtn.disabled = false;
   }
 
   function commitSelectedReward() {
@@ -1060,16 +1099,76 @@ function updateBoss(dt) {
     }
   }
 
+  function updateItemUpgradesUI() {
+    const section = document.getElementById('itemUpgradeSection');
+    const header  = document.getElementById('itemUpgradeHeader');
+    section.innerHTML = '';
+    let hasAny = false;
+    for (const id of pickedItemIds) {
+      const upg = ITEM_UPGRADES[id];
+      if (!upg) continue;
+      hasAny = true;
+      const level = upgradeLevels[id] ?? 0;
+      const maxLevel = upg.levels.length;
+      const isMax = level >= maxLevel;
+      const itemName = ITEM_POOL.find(i => i.id === id)?.name ?? id;
+      const div = document.createElement('div');
+      div.className = 'shop-item';
+      if (isMax) {
+        div.innerHTML = `<span>${itemName} <small>Lv.MAX</small></span>`;
+        const btn = document.createElement('button');
+        btn.className = 'buy-btn';
+        btn.disabled = true;
+        btn.textContent = 'MAX';
+        div.appendChild(btn);
+      } else {
+        const { cost, desc } = upg.levels[level];
+        const nextLabel = level + 2 > maxLevel ? 'MAX' : `Lv.${level + 2}`;
+        div.innerHTML = `<span>${itemName} <small>Lv.${level + 1} → ${nextLabel}</small>: ${desc}</span>`;
+        const btn = document.createElement('button');
+        btn.className = 'buy-btn';
+        btn.dataset.upgradeId = id;
+        btn.disabled = gold < cost;
+        btn.textContent = `${cost} G`;
+        div.appendChild(btn);
+      }
+      section.appendChild(div);
+    }
+    header.classList.toggle('hidden', !hasAny);
+  }
+
+  function buyItemUpgrade(id) {
+    const upg = ITEM_UPGRADES[id];
+    if (!upg) return;
+    const level = upgradeLevels[id] ?? 0;
+    if (level >= upg.levels.length) return;
+    const { cost, apply } = upg.levels[level];
+    if (gold < cost) return;
+    gold -= cost;
+    apply();
+    upgradeLevels[id] = level + 1;
+    updateStatsDisplay();
+    updateShopUI();
+  }
+
   function openShop() {
     gameState = 'shop';
     hide(dom.confirmOverlay);
-    show(dom.shopOverlay);
+    hide(dom.shopOverlay);
+    show(dom.rewardOverlay);
     setupShopRewards();
     updateShopUI();
   }
 
-  function closeShopToNextStage() {
+  function confirmRewardAndShowUpgrades() {
+    if (selectedRewardIdx === null) return;
     commitSelectedReward();
+    hide(dom.rewardOverlay);
+    show(dom.shopOverlay);
+    updateShopUI();
+  }
+
+  function closeShopToNextStage() {
     hide(dom.shopOverlay);
     resetGame();
     gameState = 'preGame';
@@ -1241,6 +1340,14 @@ function updateBoss(dt) {
 
   // ─── EVENT LISTENERS ──────────────────────────────────────────────────────────
   dom.confirmBtn.addEventListener('click', () => { if (gameState === 'cleared') { playSfx('click'); openShop(); } });
+  dom.confirmRewardBtn.addEventListener('click', () => { playSfx('click'); confirmRewardAndShowUpgrades(); });
+
+  document.getElementById('itemUpgradeSection').addEventListener('click', e => {
+    const btn = e.target.closest('[data-upgrade-id]');
+    if (!btn || btn.disabled) return;
+    playSfx('click');
+    buyItemUpgrade(btn.dataset.upgradeId);
+  });
   dom.nextStageBtn.addEventListener('click', () => { if (gameState === 'shop') { playSfx('click'); closeShopToNextStage(); } });
 
   dom.buyDamage.addEventListener('click', () => { playSfx('click'); buy('damage'); });

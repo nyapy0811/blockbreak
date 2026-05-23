@@ -128,45 +128,51 @@
             <button id="gameoverMainBtn">메인으로</button>
           </div>
         </div>
+        <!-- 오버레이 1: 특수 능력 선택 -->
+        <div id="rewardOverlay" class="overlay hidden">
+          <div class="reward-modal">
+            <h2>특수 능력 선택</h2>
+            <div class="reward-cards">
+              <button type="button" class="reward-card" data-slot="0">
+                <span class="reward-name">?</span>
+                <span class="reward-desc">(준비 중)</span>
+              </button>
+              <button type="button" class="reward-card" data-slot="1">
+                <span class="reward-name">?</span>
+                <span class="reward-desc">(준비 중)</span>
+              </button>
+              <button type="button" class="reward-card" data-slot="2">
+                <span class="reward-name">?</span>
+                <span class="reward-desc">(준비 중)</span>
+              </button>
+            </div>
+            <button id="confirmRewardBtn" disabled>선택 확정</button>
+          </div>
+        </div>
+
+        <!-- 오버레이 2: 업그레이드 상점 -->
         <div id="shopOverlay" class="overlay hidden">
           <div class="shop-modal">
-            <div class="shop-left">
-              <h2>상점 (행복의 조각: <span id="shop-gold">0</span>)</h2>
-              <div class="shop-item">
-                <span>에너지 데미지 +1</span>
-                <button id="buy-damage" class="buy-btn"><span id="price-damage">5</span> G</button>
-              </div>
-              <div class="shop-item">
-                <span>의지 크기 +20</span>
-                <button id="buy-paddle" class="buy-btn"><span id="price-paddle">5</span> G</button>
-              </div>
-              <div class="shop-item">
-                <span>황금 타일 +2</span>
-                <button id="buy-goldchance" class="buy-btn"><span id="price-goldchance">10</span> G</button>
-              </div>
-              <div class="shop-item">
-                <span>보호막</span>
-                <button id="buy-shield" class="buy-btn"><span id="price-shield">20</span> G</button>
-              </div>
-              <button id="nextStageBtn">다음 스테이지</button>
+            <h2>상점 (행복의 조각: <span id="shop-gold">0</span>)</h2>
+            <div class="shop-item">
+              <span>에너지 데미지 +1</span>
+              <button id="buy-damage" class="buy-btn"><span id="price-damage">5</span> G</button>
             </div>
-            <div class="shop-right" id="rewardSection">
-              <h3>무작위 특수 능력</h3>
-              <div class="reward-cards">
-                <button type="button" class="reward-card" data-slot="0">
-                  <span class="reward-name">?</span>
-                  <span class="reward-desc">(준비 중)</span>
-                </button>
-                <button type="button" class="reward-card" data-slot="1">
-                  <span class="reward-name">?</span>
-                  <span class="reward-desc">(준비 중)</span>
-                </button>
-                <button type="button" class="reward-card" data-slot="2">
-                  <span class="reward-name">?</span>
-                  <span class="reward-desc">(준비 중)</span>
-                </button>
-              </div>
+            <div class="shop-item">
+              <span>의지 크기 +20</span>
+              <button id="buy-paddle" class="buy-btn"><span id="price-paddle">5</span> G</button>
             </div>
+            <div class="shop-item">
+              <span>황금 타일 +2</span>
+              <button id="buy-goldchance" class="buy-btn"><span id="price-goldchance">10</span> G</button>
+            </div>
+            <div class="shop-item">
+              <span>보호막</span>
+              <button id="buy-shield" class="buy-btn"><span id="price-shield">20</span> G</button>
+            </div>
+            <h3 id="itemUpgradeHeader" class="hidden">보유 아이템 업그레이드</h3>
+            <div id="itemUpgradeSection"></div>
+            <button id="nextStageBtn">다음 스테이지</button>
           </div>
         </div>
       </div>

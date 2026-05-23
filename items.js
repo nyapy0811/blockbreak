@@ -73,7 +73,7 @@ const ITEM_POOL = [
   },
   {
     id: "pierce_start",
-    name: "행복은 멈추지 않아	",
+    name: "행복은 멈추지 않아",
     desc: "첫 벽 충돌 전까지 스트레스 통과",
     apply: () => {
       effects.firstWallPierce = true;
@@ -113,3 +113,106 @@ const ITEM_POOL = [
     },
   },
 ];
+
+// ─── 아이템 업그레이드 정의 ────────────────────────────────────────────────────
+// id는 ITEM_POOL의 id와 동일
+//
+// 항목 형식:
+//   levels : 레벨별 정의 배열 (배열 길이 = 최대 업그레이드 횟수, 현재 4회)
+//     각 레벨 항목:
+//       cost  : 구매 가격 (숫자)
+//       desc  : 이 레벨 업그레이드 효과 설명
+//       apply : 업그레이드 적용 시 실행되는 함수
+//
+// 사용 가능한 변수: stats.ballDamage, stats.ballRadius, effects.*, paddle.w
+// ─────────────────────────────────────────────────────────────────────────────
+const ITEM_UPGRADES = {
+  bouncy_small: {
+    levels: [
+      { cost: 10, desc: '소형 에너지 충돌 횟수 +1회', apply: () => { effects.bouncyBallBounces += 1; } },
+      { cost: 10, desc: '소형 에너지 충돌 횟수 +1회', apply: () => { effects.bouncyBallBounces += 1; } },
+      { cost: 10, desc: '소형 에너지 충돌 횟수 +1회', apply: () => { effects.bouncyBallBounces += 1; } },
+      { cost: 30, desc: '소형 에너지 생성 주기 -1회, 소형 에너지 충돌 횟수 +2회', apply: () => { effects.bouncyHitsPerSpawn = Math.max(1, effects.bouncyHitsPerSpawn - 1); effects.bouncyBallBounces += 2; } },
+    ],
+  },
+  bigger_stronger: {
+    levels: [
+      { cost: 10, desc: '에너지 데미지 +20%', apply: () => { stats.ballDamage = Math.ceil(stats.ballDamage * 1.2); } },
+      { cost: 10, desc: '에너지 데미지 +20%', apply: () => { stats.ballDamage = Math.ceil(stats.ballDamage * 1.2); } },
+      { cost: 10, desc: '에너지 데미지 +20%', apply: () => { stats.ballDamage = Math.ceil(stats.ballDamage * 1.2); } },
+      { cost: 30, desc: '에너지 데미지 +40%', apply: () => { stats.ballDamage = Math.ceil(stats.ballDamage * 1.4); } },
+    ],
+  },
+  indest_pierce: {
+    levels: [
+      { cost: 10, desc: '파괴 불가 스트레스 관통후 첫 충돌 데미지 +20%', apply: () => { effects.indestructiblePierceBonus += 0.2; } },
+      { cost: 10, desc: '파괴 불가 스트레스 관통후 첫 충돌 데미지 +20%', apply: () => { effects.indestructiblePierceBonus += 0.2; } },
+      { cost: 10, desc: '파괴 불가 스트레스 관통후 첫 충돌 데미지 +20%', apply: () => { effects.indestructiblePierceBonus += 0.2; } },
+      { cost: 30, desc: '파괴 불가 스트레스 관통후 첫 충돌 데미지 +40%', apply: () => { effects.indestructiblePierceBonus += 0.4; } },
+    ],
+  },
+  splash: {
+    levels: [
+      { cost: 10, desc: '스플래시 데미지 +10%', apply: () => { effects.splashRatio = +(effects.splashRatio + 0.1).toFixed(2); } },
+      { cost: 10, desc: '스플래시 데미지 +10%', apply: () => { effects.splashRatio = +(effects.splashRatio + 0.1).toFixed(2); } },
+      { cost: 10, desc: '스플래시 데미지 +10%', apply: () => { effects.splashRatio = +(effects.splashRatio + 0.1).toFixed(2); } },
+      { cost: 30, desc: '스플래시 데미지 +20%, 스플래시 범위 주변 8칸', apply: () => { effects.splashRatio = +(effects.splashRatio + 0.2).toFixed(2); effects.splashMoore = true; } },
+    ],
+  },
+  sniper: {
+    levels: [
+      { cost: 10, desc: '소형 에너지 발사 주기 -0.2초', apply: () => { effects.sniperInterval = Math.max(0.6, +(effects.sniperInterval - 0.2).toFixed(1)); } },
+      { cost: 10, desc: '소형 에너지 발사 주기 -0.2초', apply: () => { effects.sniperInterval = Math.max(0.6, +(effects.sniperInterval - 0.2).toFixed(1)); } },
+      { cost: 10, desc: '소형 에너지 발사 주기 -0.2초', apply: () => { effects.sniperInterval = Math.max(0.6, +(effects.sniperInterval - 0.2).toFixed(1)); } },
+      { cost: 30, desc: '소형 에너지 발사 주기 -0.4초, 소형 에너지 데미지 +100%', apply: () => { effects.sniperInterval = Math.max(0.6, +(effects.sniperInterval - 0.4).toFixed(1)); effects.sniperDamageMult *= 2; } },
+    ],
+  },
+  speed_gold: {
+    levels: [
+      { cost: 10, desc: '행복 조각 획득 +20%', apply: () => { effects.goldMult += 0.2; } },
+      { cost: 10, desc: '행복 조각 획득 +20%', apply: () => { effects.goldMult += 0.2; } },
+      { cost: 10, desc: '행복 조각 획득 +20%', apply: () => { effects.goldMult += 0.2; } },
+      { cost: 30, desc: '행복 조각 획득 +40%, 에너지 속도 -25%', apply: () => { effects.goldMult += 0.4; effects.ballSpeedMult *= 0.75; } },
+    ],
+  },
+  pierce_start: {
+    levels: [
+      { cost: 10, desc: '에너지 시작 각도 -2%', apply: () => { effects.launchAngleMult = +(effects.launchAngleMult * 0.98).toFixed(4); } },
+      { cost: 10, desc: '에너지 시작 각도 -2%', apply: () => { effects.launchAngleMult = +(effects.launchAngleMult * 0.98).toFixed(4); } },
+      { cost: 10, desc: '에너지 시작 각도 -2%', apply: () => { effects.launchAngleMult = +(effects.launchAngleMult * 0.98).toFixed(4); } },
+      { cost: 30, desc: '에너지 시작 각도 -4%', apply: () => { effects.launchAngleMult = +(effects.launchAngleMult * 0.96).toFixed(4); } },
+    ],
+  },
+  small_paddle: {
+    levels: [
+      { cost: 10, desc: '행복 조각 획득 +20%', apply: () => { effects.goldMult += 0.2; } },
+      { cost: 10, desc: '행복 조각 획득 +20%', apply: () => { effects.goldMult += 0.2; } },
+      { cost: 10, desc: '행복 조각 획득 +20%', apply: () => { effects.goldMult += 0.2; } },
+      { cost: 30, desc: '행복 조각 획득 +40%, 의지 크기 +25%', apply: () => { effects.goldMult += 0.4; paddle.w *= 1.25; } },
+    ],
+  },
+  rapid_fire: {
+    levels: [
+      { cost: 10, desc: '소형 에너지 발사 주기 -0.1초', apply: () => { effects.rapidFireInterval = Math.max(0.3, +(effects.rapidFireInterval - 0.1).toFixed(2)); } },
+      { cost: 10, desc: '소형 에너지 발사 주기 -0.1초', apply: () => { effects.rapidFireInterval = Math.max(0.3, +(effects.rapidFireInterval - 0.1).toFixed(2)); } },
+      { cost: 10, desc: '소형 에너지 발사 주기 -0.1초', apply: () => { effects.rapidFireInterval = Math.max(0.3, +(effects.rapidFireInterval - 0.1).toFixed(2)); } },
+      { cost: 30, desc: '소형 에너지 발사 주기 -0.2초, 소형 에너지 데미지 -80% → -50%', apply: () => { effects.rapidFireInterval = Math.max(0.3, +(effects.rapidFireInterval - 0.2).toFixed(2)); effects.rapidFireDamageMult = 0.5; } },
+    ],
+  },
+  clone_ball: {
+    levels: [
+      { cost: 10, desc: '행복 에너지 복제 주기 -2초', apply: () => { effects.cloneBallInterval = Math.max(5, effects.cloneBallInterval - 2); } },
+      { cost: 10, desc: '행복 에너지 복제 주기 -2초', apply: () => { effects.cloneBallInterval = Math.max(5, effects.cloneBallInterval - 2); } },
+      { cost: 10, desc: '행복 에너지 복제 주기 -2초', apply: () => { effects.cloneBallInterval = Math.max(5, effects.cloneBallInterval - 2); } },
+      { cost: 30, desc: '행복 에너지 복제 주기 -4초', apply: () => { effects.cloneBallInterval = Math.max(5, effects.cloneBallInterval - 4); } },
+    ],
+  },
+  pierce: {
+    levels: [
+      { cost: 10, desc: '스트레스 정화시 주변 4칸 스플래시 데미지 +10%', apply: () => { effects.pierceOnDestroySplashRatio += 0.1; } },
+      { cost: 10, desc: '스트레스 정화시 주변 4칸 스플래시 데미지 +10%', apply: () => { effects.pierceOnDestroySplashRatio += 0.1; } },
+      { cost: 10, desc: '스트레스 정화시 주변 4칸 스플래시 데미지 +10%', apply: () => { effects.pierceOnDestroySplashRatio += 0.1; } },
+      { cost: 30, desc: '스트레스 정화시 주변 4칸 스플래시 데미지 +20%', apply: () => { effects.pierceOnDestroySplashRatio += 0.2; } },
+    ],
+  },
+};
