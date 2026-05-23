@@ -50,6 +50,13 @@ const dom = {
   closeSettingsBtn:   document.getElementById('closeSettingsBtn'),
   testWinBtn:         document.getElementById('testWinBtn'),
   bgmAudio:           document.getElementById('bgmAudio'),
+  sfxPaddle:          document.getElementById('sfxPaddle'),
+  sfxBrickHit:        document.getElementById('sfxBrickHit'),
+  sfxBrickDestroy:    document.getElementById('sfxBrickDestroy'),
+  sfxWin:             document.getElementById('sfxWin'),
+  sfxFinalWin:        document.getElementById('sfxFinalWin'),
+  sfxGameover:        document.getElementById('sfxGameover'),
+  sfxClick:           document.getElementById('sfxClick'),
   legendArmor:        document.getElementById('legend-armor'),
   legendIndestructible: document.getElementById('legend-indestructible'),
   legendHardened:     document.getElementById('legend-hardened'),
@@ -139,7 +146,9 @@ const settings = {
   paddleColor:         COLOR_PRESETS.default.paddle,
   backgroundTheme:     'default',
   bgmEnabled:          true,
+  bgmVolume:           0.3,
   sfxEnabled:          true,
+  sfxVolume:           0.5,
 };
 
 const stats = {
@@ -560,6 +569,7 @@ function updateBall(ball, dt) {
   if (ball.x + ball.r > W) { ball.x = W - ball.r; ball.dx = -Math.abs(ball.dx); wallHit = true; }
   if (ball.y - ball.r < 0) { ball.y = ball.r; ball.dy = Math.abs(ball.dy); wallHit = true; }
   if (wallHit) {
+    playSfx('wall');
     if (ball.vanishOnHit) { ball.dead = true; return; }
     if (ball.pierce) ball.pierce = false;
     if (ball.bouncesLeft !== undefined && --ball.bouncesLeft <= 0) ball.dead = true;
@@ -918,14 +928,15 @@ function updateBoss(dt) {
         dom.winScore.textContent = score;
         gameState = 'won';
         show(dom.winOverlay);
+        playSfx('finalWin');
       } else {
         dom.clearMessage.textContent = `스테이지 ${currentStage} 클리어!`;
         dom.message.textContent = '';
         currentStage++;
         gameState = 'cleared';
         show(dom.confirmOverlay);
+        playSfx('win');
       }
-      playSfx('win');
     } else {
       gameState = 'gameover';
       show(dom.gameoverOverlay);
@@ -1069,6 +1080,7 @@ function updateBoss(dt) {
   // ─── AUDIO ────────────────────────────────────────────────────────────────────
   function tryPlayBgm() {
     if (!settings.bgmEnabled || !dom.bgmAudio) return;
+    dom.bgmAudio.volume = settings.bgmVolume;
     const p = dom.bgmAudio.play();
     if (p?.catch) p.catch(() => { });
   }
@@ -1084,8 +1096,35 @@ function updateBoss(dt) {
     return audioCtx;
   }
 
+  // .wav 파일이 있는 SFX 타입 → dom 오디오 요소로 재생
+  // 없는 타입 → Web Audio API 오실레이터 폴백
+  const SFX_AUDIO_MAP = {
+    paddle:       () => dom.sfxPaddle,
+    brickHit:     () => dom.sfxBrickHit,
+    brickDestroy: () => dom.sfxBrickDestroy,
+    wall:         () => dom.sfxBrickHit,
+    win:          () => dom.sfxWin,
+    finalWin:     () => dom.sfxFinalWin,
+    gameover:     () => dom.sfxGameover,
+    click:        () => dom.sfxClick,
+  };
+
+  function playSfxAudioEl(el) {
+    if (!el) return;
+    el.volume = settings.sfxVolume;
+    el.currentTime = 0;
+    const p = el.play();
+    if (p?.catch) p.catch(() => { });
+  }
+
   function playSfx(type) {
     if (!settings.sfxEnabled) return;
+
+    // .wav 기반 SFX
+    const getEl = SFX_AUDIO_MAP[type];
+    if (getEl) { playSfxAudioEl(getEl()); return; }
+
+    // 오실레이터 폴백 (goldBrick, win, gameover, shield 등)
     const ac = getAudioCtx();
     if (!ac) return;
     const now = ac.currentTime;
@@ -1094,29 +1133,10 @@ function updateBoss(dt) {
     osc.connect(gain).connect(ac.destination);
     let dur = 0.05;
     switch (type) {
-      case 'paddle':
-        osc.type = 'sine'; osc.frequency.setValueAtTime(440, now);
-        gain.gain.setValueAtTime(0.18, now); dur = 0.05; break;
-      case 'brickHit':
-        osc.type = 'square'; osc.frequency.setValueAtTime(220, now);
-        gain.gain.setValueAtTime(0.12, now); dur = 0.04; break;
-      case 'brickDestroy':
-        osc.type = 'square'; osc.frequency.setValueAtTime(320, now);
-        osc.frequency.linearRampToValueAtTime(160, now + 0.1);
-        gain.gain.setValueAtTime(0.22, now); dur = 0.1; break;
       case 'goldBrick':
         osc.type = 'sine'; osc.frequency.setValueAtTime(660, now);
         osc.frequency.exponentialRampToValueAtTime(1320, now + 0.15);
         gain.gain.setValueAtTime(0.25, now); dur = 0.15; break;
-      case 'win':
-        osc.type = 'triangle'; osc.frequency.setValueAtTime(523, now);
-        osc.frequency.setValueAtTime(659, now + 0.1);
-        osc.frequency.setValueAtTime(784, now + 0.2);
-        gain.gain.setValueAtTime(0.22, now); dur = 0.4; break;
-      case 'gameover':
-        osc.type = 'sawtooth'; osc.frequency.setValueAtTime(440, now);
-        osc.frequency.linearRampToValueAtTime(110, now + 0.5);
-        gain.gain.setValueAtTime(0.25, now); dur = 0.5; break;
       case 'shield':
         osc.type = 'square'; osc.frequency.setValueAtTime(800, now);
         gain.gain.setValueAtTime(0.18, now); dur = 0.2; break;
@@ -1200,6 +1220,17 @@ function updateBoss(dt) {
     });
   });
 
+  document.getElementById('bgmVolume').addEventListener('input', e => {
+    settings.bgmVolume = (e.target.value / 100) * 0.6;
+    document.getElementById('bgmVolumeLabel').textContent = `${e.target.value}%`;
+    if (dom.bgmAudio) dom.bgmAudio.volume = settings.bgmVolume;
+  });
+
+  document.getElementById('sfxVolume').addEventListener('input', e => {
+    settings.sfxVolume = e.target.value / 100;
+    document.getElementById('sfxVolumeLabel').textContent = `${e.target.value}%`;
+  });
+
   document.querySelectorAll('.sfx-toggle-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.sfx-toggle-btn').forEach(b => b.classList.remove('active'));
@@ -1209,28 +1240,30 @@ function updateBoss(dt) {
   });
 
   // ─── EVENT LISTENERS ──────────────────────────────────────────────────────────
-  dom.confirmBtn.addEventListener('click', () => { if (gameState === 'cleared') openShop(); });
-  dom.nextStageBtn.addEventListener('click', () => { if (gameState === 'shop') closeShopToNextStage(); });
+  dom.confirmBtn.addEventListener('click', () => { if (gameState === 'cleared') { playSfx('click'); openShop(); } });
+  dom.nextStageBtn.addEventListener('click', () => { if (gameState === 'shop') { playSfx('click'); closeShopToNextStage(); } });
 
-  dom.buyDamage.addEventListener('click', () => buy('damage'));
-  dom.buyPaddle.addEventListener('click', () => buy('paddle'));
-  dom.buyGoldChance.addEventListener('click', () => buy('goldchance'));
-  dom.buyShield.addEventListener('click', () => buy('shield'));
+  dom.buyDamage.addEventListener('click', () => { playSfx('click'); buy('damage'); });
+  dom.buyPaddle.addEventListener('click', () => { playSfx('click'); buy('paddle'); });
+  dom.buyGoldChance.addEventListener('click', () => { playSfx('click'); buy('goldchance'); });
+  dom.buyShield.addEventListener('click', () => { playSfx('click'); buy('shield'); });
 
-  dom.rewardCards.forEach((card, i) => card.addEventListener('click', () => pickReward(i)));
+  dom.rewardCards.forEach((card, i) => card.addEventListener('click', () => { playSfx('click'); pickReward(i); }));
 
-  dom.restartBtn.addEventListener('click', () => { if (gameState === 'won') returnToStart(); });
-  dom.gameoverRestartBtn.addEventListener('click', () => { if (gameState === 'gameover') returnToStart(); });
-  dom.winMainBtn.addEventListener('click', () => { if (gameState === 'won') returnToMain(); });
-  dom.gameoverMainBtn.addEventListener('click', () => { if (gameState === 'gameover') returnToMain(); });
+  dom.restartBtn.addEventListener('click', () => { if (gameState === 'won') { playSfx('click'); returnToStart(); } });
+  dom.gameoverRestartBtn.addEventListener('click', () => { if (gameState === 'gameover') { playSfx('click'); returnToStart(); } });
+  dom.winMainBtn.addEventListener('click', () => { if (gameState === 'won') { playSfx('click'); returnToMain(); } });
+  dom.gameoverMainBtn.addEventListener('click', () => { if (gameState === 'gameover') { playSfx('click'); returnToMain(); } });
 
   dom.storyCloseBtn.addEventListener('click', () => {
+    playSfx('click');
     hide(dom.storyOverlay);
     show(dom.mainOverlay);
   });
 
   dom.newGameBtn.addEventListener('click', () => {
     if (gameState !== 'main') return;
+    playSfx('click');
     fullReset(); resetGame(); draw();
     hide(dom.mainOverlay); show(dom.preGameOverlay);
     gameState = 'preGame';
@@ -1238,14 +1271,17 @@ function updateBoss(dt) {
 
   dom.openRulesBtn.addEventListener('click', () => {
     if (gameState !== 'main') return;
+    playSfx('click');
     hide(dom.mainOverlay); show(dom.rulesOverlay);
   });
   dom.closeRulesBtn.addEventListener('click', () => {
+    playSfx('click');
     hide(dom.rulesOverlay); show(dom.mainOverlay);
   });
 
   dom.openSettingsBtn.addEventListener('click', () => {
     if (gameState !== 'main') return;
+    playSfx('click');
     hide(dom.mainOverlay); show(dom.settingsOverlay);
     const isCustom = settings.backgroundTheme === 'custom';
     dom.customColorGroup.style.display = isCustom ? '' : 'none';
@@ -1255,17 +1291,21 @@ function updateBoss(dt) {
 
   dom.closeSettingsBtn.addEventListener('click', () => {
     if (gameState !== 'settings') return;
+    playSfx('click');
     hide(dom.settingsOverlay); show(dom.mainOverlay);
     gameState = 'main';
   });
 
   dom.startGameBtn.addEventListener('click', () => {
     if (gameState !== 'preGame') return;
+    playSfx('click');
     hide(dom.preGameOverlay);
     gameState = 'ready';
-    tryPlayBgm();
     startGame();
   });
+
+  // 화면 첫 인터랙션 시 BGM 시작 (브라우저 자동재생 정책 우회)
+  document.addEventListener('click', tryPlayBgm, { once: true });
 
   function clientXToPaddleX(clientX) {
     const rect = dom.canvas.getBoundingClientRect();

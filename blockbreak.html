@@ -87,11 +87,21 @@
                 </div>
               </div>
               <div class="setting-group">
+                <label>BGM 음량</label>
+                <input type="range" id="bgmVolume" min="0" max="100" value="50" style="width:120px">
+                <span id="bgmVolumeLabel">50%</span>
+              </div>
+              <div class="setting-group">
                 <label>효과음</label>
                 <div class="preset-buttons">
                   <button type="button" data-sfx="on"  class="sfx-toggle-btn active">켜기</button>
                   <button type="button" data-sfx="off" class="sfx-toggle-btn">끄기</button>
                 </div>
+              </div>
+              <div class="setting-group">
+                <label>효과음 음량</label>
+                <input type="range" id="sfxVolume" min="0" max="100" value="50" style="width:120px">
+                <span id="sfxVolumeLabel">50%</span>
               </div>
             </div>
             <button id="closeSettingsBtn">닫기</button>
@@ -195,7 +205,14 @@
       <div id="picked-items"></div>
     </div>
   </div>
-  <audio id="bgmAudio" src="../assets/bgm.mp3" loop preload="auto"></audio>
+  <audio id="bgmAudio" src="bgm.wav" loop preload="auto"></audio>
+  <audio id="sfxPaddle"      src="sfx_paddle.wav"       preload="auto"></audio>
+  <audio id="sfxBrickHit"    src="sfx_brickhit.wav"     preload="auto"></audio>
+  <audio id="sfxBrickDestroy" src="sfx_brickdestroy.wav" preload="auto"></audio>
+  <audio id="sfxWin"         src="sfx_win.wav"           preload="auto"></audio>
+  <audio id="sfxFinalWin"    src="sfx_finalwin.wav"      preload="auto"></audio>
+  <audio id="sfxGameover"    src="sfx_gameover.wav"      preload="auto"></audio>
+  <audio id="sfxClick"       src="sfx_click.wav"         preload="auto"></audio>
   <script src="items.js"></script>
   <script src="blockbreak.js"></script>
 </body>
