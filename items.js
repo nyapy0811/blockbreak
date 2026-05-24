@@ -177,10 +177,10 @@ const ITEM_UPGRADES = {
   },
   pierce_start: {
     levels: [
-      { cost: 10, desc: '에너지 시작 각도 -2%', apply: () => { effects.launchAngleMult = +(effects.launchAngleMult * 0.98).toFixed(4); } },
-      { cost: 10, desc: '에너지 시작 각도 -2%', apply: () => { effects.launchAngleMult = +(effects.launchAngleMult * 0.98).toFixed(4); } },
-      { cost: 10, desc: '에너지 시작 각도 -2%', apply: () => { effects.launchAngleMult = +(effects.launchAngleMult * 0.98).toFixed(4); } },
-      { cost: 30, desc: '에너지 시작 각도 -4%', apply: () => { effects.launchAngleMult = +(effects.launchAngleMult * 0.96).toFixed(4); } },
+      { cost: 10, desc: '에너지 시작 각도 -3도', apply: () => { effects.launchAngleReduction += 3; } },
+      { cost: 10, desc: '에너지 시작 각도 -3도', apply: () => { effects.launchAngleReduction += 3; } },
+      { cost: 10, desc: '에너지 시작 각도 -3도', apply: () => { effects.launchAngleReduction += 3; } },
+      { cost: 30, desc: '에너지 시작 각도 -6도', apply: () => { effects.launchAngleReduction += 6; } },
     ],
   },
   small_paddle: {

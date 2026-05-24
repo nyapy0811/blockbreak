@@ -83,8 +83,8 @@ const BOSS = {
 };
 
 const BLOOM = {
-  size:    50,  // 글로우가 공 바깥으로 번지는 거리 (px)
-  opacity: 0.2, // 글로우 중심부 불투명도 (0~1)
+  size:    30,  // 글로우가 공 바깥으로 번지는 거리 (px)
+  opacity: 0.1, // 글로우 중심부 불투명도 (0~1)
 };
 
 const PADDLE_SPIN = {
@@ -191,6 +191,7 @@ const effects = {
   cloneBallInterval:           0,
   firstWallPierce:             false,
   launchAngleMult:             1,     // 발사 각도 배율
+  launchAngleReduction:        0,     // 발사 각도 감소 (도)
   goldMult:                    1,
   ballSpeedMult:               1,
   pierceOnDestroy:             false,
@@ -405,7 +406,7 @@ function initBossStage() {
     type:  BRICK_TYPE.BOSS,
     dx: Math.cos(angle) * BOSS.SPEED,
     dy: Math.sin(angle) * BOSS.SPEED,
-    lastHitTime: 0,
+    lastTurnTime: performance.now(),
     formationH: BOSS.H * 2,
   });
   bricks.push({
@@ -472,7 +473,7 @@ function dealDamageToBlock(b, dmg) {
   if (b.hp <= 0) {
     b.alive = false;
     if (b.type !== BRICK_TYPE.BOSS) {
-      const baseGold = b.trait === 'gold' ? GOLD.TRAIT_REWARD : 1;
+      const baseGold = b.trait === 'gold' ? GOLD.TRAIT_REWARD : 2;
       gold += Math.ceil(baseGold * effects.goldMult);
       updateStatsDisplay();
     }
@@ -547,9 +548,8 @@ function collideBricks(ball, prevX, prevY) {
       const isBoss = b.type === BRICK_TYPE.BOSS;
       let onCooldown = false;
       if (isBoss) {
-        const now = performance.now();
-        if (now - b.lastHitTime < BOSS.HIT_COOLDOWN_MS) onCooldown = true;
-        else b.lastHitTime = now;
+        if (ball.bossHitPending) onCooldown = true;
+        else ball.bossHitPending = true;
       }
       if (onCooldown) {
         playSfx('brickHit');
@@ -600,15 +600,18 @@ function updateBall(ball, dt) {
   if (ball.y - ball.r < 0) { ball.y = ball.r; ball.dy = Math.abs(ball.dy); wallHit = true; }
   if (wallHit) {
     playSfx('wall');
+    ball.bossHitPending = false;
     if (ball.vanishOnHit) { ball.dead = true; return; }
     if (ball.pierce) ball.pierce = false;
     if (ball.bouncesLeft !== undefined && --ball.bouncesLeft <= 0) ball.dead = true;
     incrementBouncyHitCount(ball);
   }
 
-  // 패드 충돌: 이전→현재 경로가 패드 상단을 가로질렀는지 검사 (터널링 방지)
+  // 패드 충돌
+  // 1단계: 상단 스윕 검사 (터널링 방지)
   const prevBottom = prevY + ball.r;
   const currBottom = ball.y + ball.r;
+  let paddleHit = false;
   if (ball.dy > 0 && prevBottom <= paddle.y && currBottom >= paddle.y) {
     const t = (paddle.y - prevBottom) / ball.dy;
     const hitX = prevX + t * ball.dx;
@@ -616,31 +619,45 @@ function updateBall(ball, dt) {
       ball.x = hitX;
       ball.y = paddle.y - ball.r;
       ball.dy = -ball.dy;
-
-      let adj = Math.max(-PADDLE_SPIN.MAX_ANGLE, Math.min(PADDLE_SPIN.MAX_ANGLE, paddle.dx * PADDLE_SPIN.FACTOR));
-      if (adj !== 0) {
-        const cosA = Math.cos(adj), sinA = Math.sin(adj);
-        const ndx = ball.dx * cosA - ball.dy * sinA;
-        const ndy = ball.dx * sinA + ball.dy * cosA;
-        ball.dx = ndx;
-        ball.dy = ndy;
-        if (ball.dy > 0) ball.dy = -ball.dy;
-      }
-
-      // 최대 각도 ±60° (수직 기준) 스냅
-      const maxAngle = Math.PI / 3;
-      const angleFromVertical = Math.atan2(ball.dx, -ball.dy);
-      if (Math.abs(angleFromVertical) > maxAngle) {
-        const speed = Math.hypot(ball.dx, ball.dy);
-        const sign = Math.sign(angleFromVertical) || 1;
-        ball.dx = Math.sin(maxAngle * sign) * speed;
-        ball.dy = -Math.cos(maxAngle * sign) * speed;
-      }
-
-      if (ball.bouncesLeft !== undefined && --ball.bouncesLeft <= 0) ball.dead = true;
-      incrementBouncyHitCount(ball);
-      playSfx('paddle');
+      paddleHit = true;
     }
+  }
+  // 2단계: 겹침 보정 (측면 등 상단 스윕으로 잡히지 않은 경우)
+  if (!paddleHit && ball.dy > 0) {
+    const bLeft = ball.x - ball.r, bRight = ball.x + ball.r;
+    const bTop  = ball.y - ball.r, bBottom = ball.y + ball.r;
+    if (bRight >= paddle.x && bLeft <= paddle.x + paddle.w &&
+        bBottom >= paddle.y && bTop <= paddle.y + paddle.h) {
+      ball.y = paddle.y - ball.r;
+      ball.dy = -Math.abs(ball.dy);
+      paddleHit = true;
+    }
+  }
+  if (paddleHit) {
+    let adj = Math.max(-PADDLE_SPIN.MAX_ANGLE, Math.min(PADDLE_SPIN.MAX_ANGLE, paddle.dx * PADDLE_SPIN.FACTOR));
+    if (adj !== 0) {
+      const cosA = Math.cos(adj), sinA = Math.sin(adj);
+      const ndx = ball.dx * cosA - ball.dy * sinA;
+      const ndy = ball.dx * sinA + ball.dy * cosA;
+      ball.dx = ndx;
+      ball.dy = ndy;
+      if (ball.dy > 0) ball.dy = -ball.dy;
+    }
+
+    // 최대 각도 ±60° (수직 기준) 스냅
+    const maxAngle = Math.PI / 3;
+    const angleFromVertical = Math.atan2(ball.dx, -ball.dy);
+    if (Math.abs(angleFromVertical) > maxAngle) {
+      const speed = Math.hypot(ball.dx, ball.dy);
+      const sign = Math.sign(angleFromVertical) || 1;
+      ball.dx = Math.sin(maxAngle * sign) * speed;
+      ball.dy = -Math.cos(maxAngle * sign) * speed;
+    }
+
+    ball.bossHitPending = false;
+    if (ball.bouncesLeft !== undefined && --ball.bouncesLeft <= 0) ball.dead = true;
+    incrementBouncyHitCount(ball);
+    playSfx('paddle');
   }
 
   collideBricks(ball, prevX, prevY);
@@ -651,12 +668,23 @@ function updateBoss(dt) {
     for (const b of bricks) {
       if (b.type !== BRICK_TYPE.BOSS || !b.alive) continue;
       boss = b;
+      const now = performance.now();
+      if (now - b.lastTurnTime >= 2000) {
+        const turnAngle = (Math.random() * 10 - 5) * Math.PI / 180;
+        const cos = Math.cos(turnAngle), sin = Math.sin(turnAngle);
+        const ndx = b.dx * cos - b.dy * sin;
+        const ndy = b.dx * sin + b.dy * cos;
+        b.dx = ndx; b.dy = ndy;
+        b.lastTurnTime = now;
+      }
       b.x += b.dx * dt; b.y += b.dy * dt;
       const formH = b.formationH || b.h;
-      if (b.x < 0) { b.x = 0; b.dx = Math.abs(b.dx); }
-      if (b.x + b.w > W) { b.x = W - b.w; b.dx = -Math.abs(b.dx); }
-      if (b.y < 0) { b.y = 0; b.dy = Math.abs(b.dy); }
-      if (b.y + formH > H / 2) { b.y = H / 2 - formH; b.dy = -Math.abs(b.dy); }
+      const bndL = W * 0.1, bndR = W * 0.9;
+      const bndT = H * 0.1, bndB = H * 0.7;
+      if (b.x < bndL) { b.x = bndL; b.dx = Math.abs(b.dx); }
+      if (b.x + b.w > bndR) { b.x = bndR - b.w; b.dx = -Math.abs(b.dx); }
+      if (b.y < bndT) { b.y = bndT; b.dy = Math.abs(b.dy); }
+      if (b.y + formH > bndB) { b.y = bndB - formH; b.dy = -Math.abs(b.dy); }
     }
     if (boss) {
       for (const b of bricks) {
@@ -732,6 +760,7 @@ function updateBoss(dt) {
       if (mainBall && balls.filter(isMainBall).length === 1 && mainBall.y - mainBall.r > H) {
         mainBall.y = H - mainBall.r;
         mainBall.dy = -Math.abs(mainBall.dy);
+        mainBall.bossHitPending = false;
         hasShield = false;
         dom.message.textContent = '보호막 발동!';
         playSfx('shield');
@@ -893,7 +922,8 @@ function updateBoss(dt) {
     paddle.lastFrameX = paddle.x; paddle.lastFrameTime = 0;
     stats.ballSpeed = stageBallSpeed() * effects.ballSpeedMult;
     const speed = stats.ballSpeed;
-    const angleDeg = (20 + Math.random() * 20) * effects.launchAngleMult * (Math.random() < 0.5 ? 1 : -1);
+    const baseAngle = Math.max(0, 15 - effects.launchAngleReduction) * effects.launchAngleMult;
+    const angleDeg = (baseAngle + Math.random() * 15) * (Math.random() < 0.5 ? 1 : -1);
     const angle = angleDeg * Math.PI / 180;
     balls = [createBall(
       paddle.x + paddle.w / 2, paddle.y - stats.ballRadius,
@@ -926,7 +956,7 @@ function updateBoss(dt) {
       sniperInterval: 0, sniperDamageMult: 1,
       rapidFireInterval: 0, rapidFireDamageMult: 0.2,
       cloneBallInterval: 0, firstWallPierce: false,
-      launchAngleMult: 1, goldMult: 1, ballSpeedMult: 1,
+      launchAngleMult: 1, launchAngleReduction: 0, goldMult: 1, ballSpeedMult: 1,
       pierceOnDestroy: false, pierceOnDestroySplashRatio: 0,
     });
     effectsState.bouncyHitCount = 0; effectsState.lastSniperSpawnTime = 0; effectsState.lastRapidFireSpawnTime = 0; effectsState.lastCloneBallSpawnTime = 0;
@@ -1001,7 +1031,7 @@ function updateBoss(dt) {
   // ─── SHOP ─────────────────────────────────────────────────────────────────────
   function priceFor(kind) {
     if (kind === 'shield') return 20;
-    if (kind === 'goldchance') return 10;
+    if (kind === 'goldchance') return 10 + 5 * shopState.goldchanceBuys;
     return 5 + 5 * shopState[kind + 'Buys'];
   }
 
@@ -1431,7 +1461,7 @@ function updateBoss(dt) {
       if (!b.alive || b.type === BRICK_TYPE.INDESTRUCTIBLE) continue;
       b.alive = false;
       if (b.type !== BRICK_TYPE.BOSS) {
-        gold += Math.ceil((b.trait === 'gold' ? GOLD.TRAIT_REWARD : 1) * effects.goldMult);
+        gold += Math.ceil((b.trait === 'gold' ? GOLD.TRAIT_REWARD : 2) * effects.goldMult);
       }
     }
     updateScoreDisplay(); updateStatsDisplay();
