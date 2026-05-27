@@ -9,6 +9,9 @@ const dom = {
   score:    document.getElementById('score'),
   message:  document.getElementById('message'),
   statDamage:     document.getElementById('stat-damage'),
+  statRadius:     document.getElementById('stat-radius'),
+  statSpeed:      document.getElementById('stat-speed'),
+  statGoldMult:   document.getElementById('stat-goldmult'),
   statPaddle:     document.getElementById('stat-paddle'),
   statGold:       document.getElementById('stat-gold'),
   statGoldChance: document.getElementById('stat-goldchance'),
@@ -74,12 +77,14 @@ const W = 800, H = 500;
 const MAX_STAGE = 5;
 
 const BOSS = {
-  SPEED:          4,
+  SPEED:          2,
   TIME_LIMIT_SEC: 180,
   W:              (600 / 8) * 2,
   H:              200 / 6,
-  HP:             400,
+  HP:             500,
   HIT_COOLDOWN_MS: 100,
+  TURN_INTERVAL_MS: 500,  // 방향 전환 간격 (ms)
+  TURN_ANGLE_DEG:   10,   // 방향 전환 최대 각도 (±도)
 };
 
 const BLOOM = {
@@ -190,6 +195,7 @@ const effects = {
   rapidFireDamageMult:         0.2,   // 연사 공 데미지 배율
   cloneBallInterval:           0,
   firstWallPierce:             false,
+  firstWallPierceDamage:       false, // MAX 레벨: 관통 중 데미지 적용
   launchAngleMult:             1,     // 발사 각도 배율
   launchAngleReduction:        0,     // 발사 각도 감소 (도)
   goldMult:                    1,
@@ -538,7 +544,7 @@ function collideBricks(ball, prevX, prevY) {
     }
     if (!(ball.x + ball.r > b.x && ball.x - ball.r < b.x + b.w &&
           ball.y + ball.r > b.y && ball.y - ball.r < b.y + b.h)) continue;
-    if (ball.pierce) continue;
+    if (ball.pierce && !effects.firstWallPierceDamage) continue;
 
     let destroyed = false;
     if (b.type === BRICK_TYPE.INDESTRUCTIBLE) {
@@ -556,7 +562,8 @@ function collideBricks(ball, prevX, prevY) {
       } else {
         const bonusMult = 1 + (ball.nextHitBonus ?? 0);
         ball.nextHitBonus = 0;
-        const primaryDmg = b.type === BRICK_TYPE.ARMOR ? 1 : Math.ceil(stats.ballDamage * (ball.damageMult ?? 1) * bonusMult);
+        const bossPenalty = (isBoss && !isMainBall(ball)) ? 0.5 : 1;
+        const primaryDmg = b.type === BRICK_TYPE.ARMOR ? 1 : Math.ceil(stats.ballDamage * (ball.damageMult ?? 1) * bonusMult * bossPenalty);
         destroyed = dealDamageToBlock(b, primaryDmg);
         playSfx(!isBoss && b.trait === 'gold' && destroyed ? 'goldBrick'
                 : destroyed ? 'brickDestroy' : 'brickHit');
@@ -573,7 +580,7 @@ function collideBricks(ball, prevX, prevY) {
 
     if (ball.vanishOnHit) { ball.dead = true; return; }
 
-    if (!(effects.pierceOnDestroy && destroyed && isMainBall(ball))) {
+    if (!ball.pierce && !(effects.pierceOnDestroy && destroyed && isMainBall(ball))) {
       reflectOffBlock(ball, b, prevX, prevY);
     }
 
@@ -669,8 +676,8 @@ function updateBoss(dt) {
       if (b.type !== BRICK_TYPE.BOSS || !b.alive) continue;
       boss = b;
       const now = performance.now();
-      if (now - b.lastTurnTime >= 2000) {
-        const turnAngle = (Math.random() * 10 - 5) * Math.PI / 180;
+      if (now - b.lastTurnTime >= BOSS.TURN_INTERVAL_MS) {
+        const turnAngle = (Math.random() * BOSS.TURN_ANGLE_DEG * 2 - BOSS.TURN_ANGLE_DEG) * Math.PI / 180;
         const cos = Math.cos(turnAngle), sin = Math.sin(turnAngle);
         const ndx = b.dx * cos - b.dy * sin;
         const ndy = b.dx * sin + b.dy * cos;
@@ -866,8 +873,8 @@ function updateBoss(dt) {
       ctx.fillStyle = displayColor;
       ctx.fillRect(b.x, b.y, b.w, b.h);
       ctx.strokeStyle = complementaryColor(displayColor);
-      ctx.lineWidth = 2;
-      ctx.strokeRect(b.x, b.y, b.w, b.h);
+      ctx.lineWidth = 1;
+      ctx.strokeRect(b.x + 0.5, b.y + 0.5, b.w - 1, b.h - 1);
       if (b.trait === 'gold') {
         ctx.strokeStyle = GOLD.TRAIT_BORDER;
         ctx.strokeRect(b.x + 2, b.y + 2, b.w - 4, b.h - 4);
@@ -910,6 +917,9 @@ function updateBoss(dt) {
 
   function updateStatsDisplay() {
     dom.statDamage.textContent = stats.ballDamage;
+    dom.statRadius.textContent = stats.ballRadius;
+    dom.statSpeed.textContent = stats.ballSpeed.toFixed(1);
+    dom.statGoldMult.textContent = `×${effects.goldMult % 1 === 0 ? effects.goldMult : effects.goldMult.toFixed(1)}`;
     dom.statPaddle.textContent = paddle.w;
     dom.statGoldChance.textContent = stats.goldTileCount;
     dom.statGold.textContent = gold;
@@ -955,7 +965,7 @@ function updateBoss(dt) {
       bouncyHitsPerSpawn: 0, bouncyBallBounces: 0,
       sniperInterval: 0, sniperDamageMult: 1,
       rapidFireInterval: 0, rapidFireDamageMult: 0.2,
-      cloneBallInterval: 0, firstWallPierce: false,
+      cloneBallInterval: 0, firstWallPierce: false, firstWallPierceDamage: false,
       launchAngleMult: 1, launchAngleReduction: 0, goldMult: 1, ballSpeedMult: 1,
       pierceOnDestroy: false, pierceOnDestroySplashRatio: 0,
     });
@@ -1124,7 +1134,22 @@ function updateBoss(dt) {
       if (!item) continue;
       const div = document.createElement('div');
       div.className = 'picked-item-row';
-      div.innerHTML = `<span class="picked-item-name">${item.name}</span><span class="picked-item-desc">${item.desc}</span>`;
+      const level = upgradeLevels[id] ?? 0;
+      const upg = ITEM_UPGRADES[id];
+      const maxLevel = upg ? upg.levels.length : 0;
+      const levelBadge = maxLevel > 0
+        ? (level >= maxLevel ? ' <span class="lv-badge lv-max">MAX</span>' : level > 0 ? ` <span class="lv-badge">Lv.${level}</span>` : '')
+        : '';
+      let desc = item.desc;
+      if (level > 0 && upg) {
+        const upgLines = upg.levels.slice(0, level).map(l => l.desc);
+        // 동일 문구 합산
+        const counts = {};
+        for (const d of upgLines) counts[d] = (counts[d] || 0) + 1;
+        const summary = Object.entries(counts).map(([d, n]) => n > 1 ? `${d} ×${n}` : d).join(', ');
+        desc += ` / ${summary}`;
+      }
+      div.innerHTML = `<span class="picked-item-name">${item.name}${levelBadge}</span><span class="picked-item-desc">${desc}</span>`;
       dom.pickedItems.appendChild(div);
     }
   }
@@ -1179,6 +1204,7 @@ function updateBoss(dt) {
     upgradeLevels[id] = level + 1;
     updateStatsDisplay();
     updateShopUI();
+    updatePickedItemsDisplay();
   }
 
   function openShop() {

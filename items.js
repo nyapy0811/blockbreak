@@ -180,7 +180,7 @@ const ITEM_UPGRADES = {
       { cost: 10, desc: '에너지 시작 각도 -3도', apply: () => { effects.launchAngleReduction += 3; } },
       { cost: 10, desc: '에너지 시작 각도 -3도', apply: () => { effects.launchAngleReduction += 3; } },
       { cost: 10, desc: '에너지 시작 각도 -3도', apply: () => { effects.launchAngleReduction += 3; } },
-      { cost: 30, desc: '에너지 시작 각도 -6도', apply: () => { effects.launchAngleReduction += 6; } },
+      { cost: 30, desc: '에너지 시작 각도 -6도, 관통 중 데미지 적용', apply: () => { effects.launchAngleReduction += 6; effects.firstWallPierceDamage = true; } },
     ],
   },
   small_paddle: {

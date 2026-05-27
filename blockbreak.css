@@ -564,3 +564,19 @@ body {
   color: #555;
 }
 
+.lv-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: bold;
+  color: #fff;
+  background: #1565c0;
+  border-radius: 3px;
+  padding: 0 4px;
+  margin-left: 3px;
+  vertical-align: middle;
+}
+
+.lv-badge.lv-max {
+  background: #b71c1c;
+}
+
