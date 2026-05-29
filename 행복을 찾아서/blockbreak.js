@@ -62,6 +62,8 @@ const dom = {
   sfxFinalWin:        document.getElementById('sfxFinalWin'),
   sfxGameover:        document.getElementById('sfxGameover'),
   sfxClick:           document.getElementById('sfxClick'),
+  sfxCoin:            document.getElementById('sfxCoin'),
+  sfxBarrier:         document.getElementById('sfxBarrier'),
   legendArmor:        document.getElementById('legend-armor'),
   legendIndestructible: document.getElementById('legend-indestructible'),
   legendHardened:     document.getElementById('legend-hardened'),
@@ -1242,17 +1244,6 @@ function updateBoss(dt) {
 
   function pauseBgm() { if (dom.bgmAudio) dom.bgmAudio.pause(); }
 
-  let audioCtx = null;
-  function getAudioCtx() {
-    if (!audioCtx) {
-      const Ctor = window.AudioContext || window.webkitAudioContext;
-      if (Ctor) audioCtx = new Ctor();
-    }
-    return audioCtx;
-  }
-
-  // .wav 파일이 있는 SFX 타입 → dom 오디오 요소로 재생
-  // 없는 타입 → Web Audio API 오실레이터 폴백
   const SFX_AUDIO_MAP = {
     paddle:       () => dom.sfxPaddle,
     brickHit:     () => dom.sfxBrickHit,
@@ -1262,6 +1253,8 @@ function updateBoss(dt) {
     finalWin:     () => dom.sfxFinalWin,
     gameover:     () => dom.sfxGameover,
     click:        () => dom.sfxClick,
+    goldBrick:    () => dom.sfxCoin,
+    shield:       () => dom.sfxBarrier,
   };
 
   function playSfxAudioEl(el) {
@@ -1274,31 +1267,8 @@ function updateBoss(dt) {
 
   function playSfx(type) {
     if (!settings.sfxEnabled) return;
-
-    // .wav 기반 SFX
     const getEl = SFX_AUDIO_MAP[type];
-    if (getEl) { playSfxAudioEl(getEl()); return; }
-
-    // 오실레이터 폴백 (goldBrick, win, gameover, shield 등)
-    const ac = getAudioCtx();
-    if (!ac) return;
-    const now = ac.currentTime;
-    const osc = ac.createOscillator();
-    const gain = ac.createGain();
-    osc.connect(gain).connect(ac.destination);
-    let dur = 0.05;
-    switch (type) {
-      case 'goldBrick':
-        osc.type = 'sine'; osc.frequency.setValueAtTime(660, now);
-        osc.frequency.exponentialRampToValueAtTime(1320, now + 0.15);
-        gain.gain.setValueAtTime(0.25, now); dur = 0.15; break;
-      case 'shield':
-        osc.type = 'square'; osc.frequency.setValueAtTime(800, now);
-        gain.gain.setValueAtTime(0.18, now); dur = 0.2; break;
-      default: return;
-    }
-    gain.gain.exponentialRampToValueAtTime(0.001, now + dur);
-    osc.start(now); osc.stop(now + dur + 0.02);
+    if (getEl) playSfxAudioEl(getEl());
   }
 
   // ─── SETTINGS UI ──────────────────────────────────────────────────────────────
