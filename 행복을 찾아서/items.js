@@ -73,7 +73,7 @@ const ITEM_POOL = [
   },
   {
     id: "pierce_start",
-    name: "행복은 멈추지 않아",
+    name: "행복한 시작",
     desc: "첫 벽 충돌 전까지 스트레스 통과",
     apply: () => {
       effects.firstWallPierce = true;
