@@ -81,7 +81,7 @@ const BOSS = {
   TIME_LIMIT_SEC: 180,
   W:              (600 / 8) * 2,
   H:              200 / 6,
-  HP:             500,
+  HP:             1000,
   HIT_COOLDOWN_MS: 100,
   TURN_INTERVAL_MS: 500,  // 방향 전환 간격 (ms)
   TURN_ANGLE_DEG:   10,   // 방향 전환 최대 각도 (±도)
@@ -243,7 +243,7 @@ function stageBallSpeed() {
   const speeds = [0, 4, 4.5, 5, 5.5, 6];
   return speeds[currentStage] ?? 6;
 }
-function getBlockHp()     { return (2 ** currentStage) - 1; }
+function getBlockHp()     { return [1, 5, 15, 40][currentStage - 1] ?? 1; }
 function isMainBall(ball) { return ball.bouncesLeft === undefined && !ball.vanishOnHit; }
 
 function shuffleInPlace(arr) {
@@ -1041,7 +1041,7 @@ function updateBoss(dt) {
   // ─── SHOP ─────────────────────────────────────────────────────────────────────
   function priceFor(kind) {
     if (kind === 'shield') return 20;
-    if (kind === 'goldchance') return 10 + 5 * shopState.goldchanceBuys;
+    if (kind === 'goldchance') return 5 + 5 * shopState.goldchanceBuys;
     return 5 + 5 * shopState[kind + 'Buys'];
   }
 
