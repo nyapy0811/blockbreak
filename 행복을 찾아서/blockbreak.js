@@ -1386,6 +1386,7 @@ document.querySelectorAll('.theme-btn').forEach(btn => {
     updateLegendColors();
     applyBackground();
     applyThemeUI();
+    draw();
     dom.customColorGroup.style.display = btn.dataset.preset === 'custom' ? '' : 'none';
     if (btn.dataset.preset === 'custom') syncColorPickers();
   });
