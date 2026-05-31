@@ -10,16 +10,12 @@ body {
 }
 
 .game-container {
-  display: grid;
-  gap: 16px;
-  align-items: start;
-  grid-template-columns: 200px auto 200px;
-  grid-template-areas: "legend game-area shop-panel";
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
-.game-area  { grid-area: game-area; min-width: 0; }
-.legend     { grid-area: legend; }
-.shop-panel { grid-area: shop-panel; }
+.game-area { min-width: 0; }
 
 .canvas-wrap {
   position: relative;
@@ -234,6 +230,82 @@ body {
   font-size: 18px;
 }
 
+/* ─── PAUSE MODAL ────────────────────────────────────────────────────────── */
+.pause-modal {
+  background: #fff;
+  padding: 32px 40px;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 40px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.pause-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  min-width: 180px;
+}
+
+.pause-center h2 {
+  margin: 0 0 8px;
+  font-size: 32px;
+  color: #333;
+}
+
+#resumeBtn {
+  padding: 12px 36px;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+  background: #222;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  width: 100%;
+}
+
+#testWinBtn,
+#pauseMainBtn {
+  padding: 10px 28px;
+  font-size: 18px;
+  cursor: pointer;
+  border-radius: 6px;
+  border: 2px solid #222;
+  background: #fff;
+  width: 100%;
+}
+
+.pause-legend {
+  font-size: 14px;
+  min-width: 220px;
+}
+
+.pause-legend h3 {
+  margin: 0 0 10px;
+  font-size: 15px;
+}
+
+.pause-stats {
+  font-size: 14px;
+  min-width: 200px;
+}
+
+.pause-stats h3 {
+  margin: 0 0 10px;
+  font-size: 15px;
+}
+
+.pause-stats hr {
+  margin: 10px 0;
+  border: 0;
+  border-top: 1px solid #ddd;
+}
+
 /* ─── GAMEOVER MODAL ──────────────────────────────────────────────────────── */
 .gameover-modal {
   background: #fff;
@@ -248,6 +320,7 @@ body {
   font-size: 36px;
   color: #c00;
 }
+
 .gameover-modal p {
   margin: 0 0 20px;
   font-size: 18px;
@@ -281,6 +354,7 @@ body {
   gap: 28px;
   text-align: left;
 }
+
 .rules-text {
   font-size: 18px;
   line-height: 1.8;
@@ -288,8 +362,10 @@ body {
   max-height: 360px;
   overflow-y: auto;
 }
+
 .rules-text p { margin: 0 0 12px; }
 .rules-text p:last-child { margin-bottom: 0; }
+
 #closeRulesBtn {
   align-self: flex-end;
   padding: 10px 28px;
@@ -300,6 +376,7 @@ body {
   font-size: 18px;
   cursor: pointer;
 }
+
 #closeRulesBtn:hover { background: #444; }
 
 .story-modal {
@@ -313,6 +390,7 @@ body {
   gap: 28px;
   text-align: left;
 }
+
 .story-text {
   font-size: 18px;
   line-height: 1.8;
@@ -320,8 +398,10 @@ body {
   max-height: 320px;
   overflow-y: auto;
 }
+
 .story-text p { margin: 0 0 12px; }
 .story-text p:last-child { margin-bottom: 0; }
+
 #storyCloseBtn {
   align-self: flex-end;
   padding: 10px 28px;
@@ -332,6 +412,7 @@ body {
   font-size: 18px;
   cursor: pointer;
 }
+
 #storyCloseBtn:hover { background: #444; }
 
 .main-modal {
@@ -357,6 +438,7 @@ body {
 
 #newGameBtn,
 #openRulesBtn,
+#openDocsBtn,
 #openSettingsBtn {
   padding: 12px 36px;
   font-size: 18px;
@@ -369,6 +451,112 @@ body {
 }
 
 #newGameBtn { background: #222; color: #fff; }
+
+/* ─── DOCS MODAL ─────────────────────────────────────────────────────────── */
+.docs-modal {
+  background: #fff;
+  padding: 36px 44px;
+  border-radius: 10px;
+  min-width: 480px;
+  max-width: 620px;
+  max-height: 85vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.docs-modal h2 {
+  margin: 0;
+  font-size: 28px;
+  text-align: center;
+}
+
+.docs-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.docs-entry {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.docs-brick {
+  width: 60px;
+  height: 40px;
+  border-radius: 4px;
+  border: 2px solid rgba(0,0,0,0.25);
+  flex-shrink: 0;
+}
+
+.docs-brick-gold {
+  outline: 3px solid #ffd700;
+  outline-offset: 2px;
+}
+
+.docs-brick-boss {
+  width: 90px;
+  height: 30px;
+}
+
+.docs-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.docs-name {
+  font-size: 16px;
+  font-weight: bold;
+  color: #222;
+}
+
+.docs-desc {
+  font-size: 13px;
+  color: #555;
+  line-height: 1.5;
+}
+
+.docs-nav-buttons {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.docs-nav-buttons button {
+  padding: 16px 40px;
+  font-size: 20px;
+  font-weight: bold;
+  cursor: pointer;
+  border-radius: 6px;
+  border: 2px solid #222;
+  background: #fff;
+  min-width: 160px;
+}
+
+.docs-nav-buttons button:hover {
+  background: #f4f4f4;
+}
+
+#closeDocsBtn,
+#closeStressDocsBtn,
+#closeAbilityDocsBtn {
+  align-self: flex-end;
+  padding: 10px 28px;
+  background: #222;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 18px;
+  cursor: pointer;
+}
+
+#closeDocsBtn:hover,
+#closeStressDocsBtn:hover,
+#closeAbilityDocsBtn:hover { background: #444; }
 
 /* ─── SETTINGS MODAL ──────────────────────────────────────────────────────── */
 .settings-modal {
@@ -490,7 +678,7 @@ body {
 }
 
 .test-controls {
-  margin-top: 8px;
+  margin-top: 16px;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -504,55 +692,30 @@ body {
   cursor: pointer;
 }
 
-/* ─── LEGEND ──────────────────────────────────────────────────────────────── */
-.legend {
-  background: #fff;
-  border: 1px solid #ccc;
-  padding: 12px 16px;
-  font-size: 18px;
-  width: 200px;
-  box-sizing: border-box;
-}
-
-.legend h3 { margin: 0 0 8px; font-size: 14px; }
-
+/* ─── LEGEND & STAT (pause 내부 공통) ────────────────────────────────────── */
 .legend-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
-  padding: 2px 0;
+  padding: 4px 0;
+  font-size: 13px;
+  line-height: 1.4;
 }
 
 .legend-color {
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
   border: 1px solid #000;
   display: inline-block;
   flex-shrink: 0;
+  margin-top: 2px;
 }
-
-/* ─── SIDE SHOP PANEL ─────────────────────────────────────────────────────── */
-.shop-panel {
-  width: 200px;
-  background: #fff;
-  border: 1px solid #ccc;
-  padding: 12px 16px;
-  font-size: 18px;
-  box-sizing: border-box;
-}
-
-.shop-panel h3 { margin: 0 0 12px; font-size: 16px; }
 
 .stat-row {
   display: flex;
   justify-content: space-between;
-  padding: 4px 0;
-}
-
-.shop-panel hr {
-  margin: 12px 0;
-  border: 0;
-  border-top: 1px solid #ddd;
+  padding: 3px 0;
+  font-size: 13px;
 }
 
 .picked-item-row {
@@ -588,4 +751,3 @@ body {
 .lv-badge.lv-max {
   background: #b71c1c;
 }
-
