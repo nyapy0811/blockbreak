@@ -152,6 +152,17 @@ const BACKGROUND_PRESETS = {
   custom:  '#2b2b2b',
 };
 
+// 테마별 스테이지 배경 이미지 (없으면 BACKGROUND_PRESETS 색상으로 폴백)
+const BACKGROUND_IMAGES = {
+  default: [
+    'background/default_stage1.png',
+    'background/default_stage2.png',
+    'background/default_stage3.png',
+    'background/default_stage4.png',
+    'background/default_stage5.png',
+  ],
+};
+
 // ─── STATE ────────────────────────────────────────────────────────────────────
 let balls = [];
 let bricks = [];
@@ -823,6 +834,7 @@ function brickBaseColor(b) {
 function drawBricks() {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
+  ctx.globalAlpha = 0.5;
   for (const b of bricks) {
     if (!b.alive) continue;
     const hpRatio      = isFinite(b.hp) && b.maxHp > 0 ? b.hp / b.maxHp : 1;
@@ -847,6 +859,7 @@ function drawBricks() {
     ctx.fillStyle   = '#fff';
     ctx.fillText(text, cx, cy);
   }
+  ctx.globalAlpha = 1;
 }
 
 // ─── DISPLAY UPDATES ──────────────────────────────────────────────────────────
@@ -906,7 +919,7 @@ function resetGame() {
   dom.message.textContent = '';
   hide(dom.timer);
   dom.timer.textContent = '';
-  updateScoreDisplay(); updateStageDisplay(); updateStatsDisplay();
+  updateScoreDisplay(); updateStageDisplay(); updateStatsDisplay(); applyBackground();
   gameState = 'ready';
 }
 
@@ -935,12 +948,15 @@ function fullReset() {
   updatePickedItemsDisplay();
 }
 
+let isContinuing = false;
+
 function startGame() {
   if (gameState !== 'ready') return;
   gameState = 'playing';
   stageStartTime = performance.now();
   lastTickSecond = 0;
-  score += currentStage === MAX_STAGE ? 5000 : 1000;
+  if (!isContinuing) score += currentStage === MAX_STAGE ? 5000 : 1000;
+  isContinuing = false;
   running = true;
   lastLoopTs = 0;
   animationId = requestAnimationFrame(loop);
@@ -1007,6 +1023,7 @@ function loseLife() {
   stageStartTime = null;
   lastTickSecond = 0;
   dom.message.textContent = '';
+  isContinuing = true;
   gameState = 'lifelost';
   dom.lifeLostHearts.textContent = '♥'.repeat(Math.max(0, lives));
   show(dom.lifeLostOverlay);
@@ -1294,7 +1311,16 @@ function updateLegendColors() {
 }
 
 function applyBackground() {
-  dom.canvas.style.background = BACKGROUND_PRESETS[settings.backgroundTheme];
+  const images = BACKGROUND_IMAGES[settings.backgroundTheme];
+  const img    = images ? images[currentStage - 1] : null;
+  if (img) {
+    dom.canvas.style.backgroundImage    = `url(${img})`;
+    dom.canvas.style.backgroundSize     = 'cover';
+    dom.canvas.style.backgroundPosition = 'center';
+  } else {
+    dom.canvas.style.backgroundImage = '';
+    dom.canvas.style.background      = BACKGROUND_PRESETS[settings.backgroundTheme];
+  }
 }
 
 function syncColorPickers() {
