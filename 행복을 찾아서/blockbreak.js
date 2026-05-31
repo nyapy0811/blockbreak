@@ -1486,7 +1486,9 @@ document.addEventListener('mousemove', e => {
 });
 
 dom.testWinBtn.addEventListener('click', () => {
-  if (!running) return;
+  if (gameState !== 'playing' && gameState !== 'paused') return;
+  hide(dom.pauseOverlay);
+  running = false;
   for (const b of bricks) {
     if (!b.alive || b.type === BRICK_TYPE.INDESTRUCTIBLE) continue;
     b.alive = false;
