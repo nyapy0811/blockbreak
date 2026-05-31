@@ -6,13 +6,13 @@
 //   apply : 특수 능력 선택 시 실행되는 함수 (stats/effects/paddle 직접 수정)
 //
 // 사용 가능한 변수:
-//   stats.ballDamage    — 공 데미지
+//   stats.ballDamage    — 공 정화력
 //   stats.ballRadius    — 공 크기
 //   effects.ballSpeedMult     — 공 속도 배수
 //   effects.goldMult          — 골드 획득 배수
 //   effects.bouncyHitsPerSpawn — N회 충돌마다 소형 공 생성 (0=비활성)
 //   effects.sniperInterval    — 저격 공 발사 주기(초) (0=비활성)
-//   effects.rapidFireInterval — 연사 공 발사 주기(초) (0=비활성, 데미지 0.2배 고정)
+//   effects.rapidFireInterval — 연사 공 발사 주기(초) (0=비활성, 정화력 0.2배 고정)
 //   effects.splashRatio       — 인접 블록 스플래시 비율 (0=비활성)
 //   effects.indestructiblePierce — 파괴불가 블록 관통 여부
 //   effects.firstWallPierce   — 첫 벽 충돌 전까지 블록 관통 여부
@@ -32,7 +32,7 @@ const ITEM_POOL = [
   {
     id: "bigger_stronger",
     name: "더 큰 행복!",
-    desc: "에너지 크기 +50%, 데미지 +100%",
+    desc: "에너지 크기 +50%, 정화력 +100%",
     apply: () => {
       stats.ballRadius *= 1.5;
       stats.ballDamage *= 2;
@@ -41,7 +41,7 @@ const ITEM_POOL = [
   {
     id: "indest_pierce",
     name: "피할수 없으면 즐겨라",
-    desc: "파괴 불가 스트레스 관통",
+    desc: "나쁜 기억 관통",
     apply: () => {
       effects.indestructiblePierce = true;
     },
@@ -49,7 +49,7 @@ const ITEM_POOL = [
   {
     id: "splash",
     name: "행복을 퍼트리자",
-    desc: "충돌 시 인접 스트레스에 50% 스플래시 데미지",
+    desc: "충돌 시 인접 스트레스에 50% 스플래시 정화",
     apply: () => {
       effects.splashRatio = 0.5;
     },
@@ -91,7 +91,7 @@ const ITEM_POOL = [
   {
     id: "rapid_fire",
     name: "행복 흩뿌리기",
-    desc: "1초마다 가장 가까운 스트레스에 소형 에너지 발사 (데미지 -80%, 1회 충돌 소멸)",
+    desc: "1초마다 가장 가까운 스트레스에 소형 에너지 발사 (정화력 -80%, 1회 충돌 소멸)",
     apply: () => {
       effects.rapidFireInterval = 1;
     },
@@ -99,7 +99,7 @@ const ITEM_POOL = [
   {
     id: "clone_ball",
     name: "점점더 행복해져요",
-    desc: "30초마다 행복 에너지를 1개 추가 복제",
+    desc: "30초마다 메인 행복 에너지를 1개 복제",
     apply: () => {
       effects.cloneBallInterval = 30;
     },
@@ -107,7 +107,7 @@ const ITEM_POOL = [
   {
     id: "pierce",
     name: "행복은 멈추지 않아",
-    desc: "에너지가 스트레스랑 충돌 시 스트레스가 정화되면 에너지가 튕기지 않음",
+    desc: "에너지가 스트레스 정화 시 에너지 반사 없이 통과",
     apply: () => {
       effects.pierceOnDestroy = true;
     },
@@ -137,26 +137,26 @@ const ITEM_UPGRADES = {
   },
   bigger_stronger: {
     levels: [
-      { cost: 10, desc: '에너지 데미지 +20%', apply: () => { stats.ballDamage = Math.ceil(stats.ballDamage * 1.2); } },
-      { cost: 10, desc: '에너지 데미지 +20%', apply: () => { stats.ballDamage = Math.ceil(stats.ballDamage * 1.2); } },
-      { cost: 10, desc: '에너지 데미지 +20%', apply: () => { stats.ballDamage = Math.ceil(stats.ballDamage * 1.2); } },
-      { cost: 30, desc: '에너지 데미지 +40%', apply: () => { stats.ballDamage = Math.ceil(stats.ballDamage * 1.4); } },
+      { cost: 10, desc: '에너지 정화력 +20%', apply: () => { stats.ballDamage = Math.ceil(stats.ballDamage * 1.2); } },
+      { cost: 10, desc: '에너지 정화력 +20%', apply: () => { stats.ballDamage = Math.ceil(stats.ballDamage * 1.2); } },
+      { cost: 10, desc: '에너지 정화력 +20%', apply: () => { stats.ballDamage = Math.ceil(stats.ballDamage * 1.2); } },
+      { cost: 30, desc: '에너지 정화력 +40%', apply: () => { stats.ballDamage = Math.ceil(stats.ballDamage * 1.4); } },
     ],
   },
   indest_pierce: {
     levels: [
-      { cost: 10, desc: '파괴 불가 스트레스 관통후 첫 충돌 데미지 +20%', apply: () => { effects.indestructiblePierceBonus += 0.2; } },
-      { cost: 10, desc: '파괴 불가 스트레스 관통후 첫 충돌 데미지 +20%', apply: () => { effects.indestructiblePierceBonus += 0.2; } },
-      { cost: 10, desc: '파괴 불가 스트레스 관통후 첫 충돌 데미지 +20%', apply: () => { effects.indestructiblePierceBonus += 0.2; } },
-      { cost: 30, desc: '파괴 불가 스트레스 관통후 첫 충돌 데미지 +40%', apply: () => { effects.indestructiblePierceBonus += 0.4; } },
+      { cost: 10, desc: '나쁜 기억 관통후 첫 충돌 정화력 +20%', apply: () => { effects.indestructiblePierceBonus += 0.2; } },
+      { cost: 10, desc: '나쁜 기억 관통후 첫 충돌 정화력 +20%', apply: () => { effects.indestructiblePierceBonus += 0.2; } },
+      { cost: 10, desc: '나쁜 기억 관통후 첫 충돌 정화력 +20%', apply: () => { effects.indestructiblePierceBonus += 0.2; } },
+      { cost: 30, desc: '나쁜 기억 관통후 첫 충돌 정화력 +40%', apply: () => { effects.indestructiblePierceBonus += 0.4; } },
     ],
   },
   splash: {
     levels: [
-      { cost: 10, desc: '스플래시 데미지 +10%', apply: () => { effects.splashRatio = +(effects.splashRatio + 0.1).toFixed(2); } },
-      { cost: 10, desc: '스플래시 데미지 +10%', apply: () => { effects.splashRatio = +(effects.splashRatio + 0.1).toFixed(2); } },
-      { cost: 10, desc: '스플래시 데미지 +10%', apply: () => { effects.splashRatio = +(effects.splashRatio + 0.1).toFixed(2); } },
-      { cost: 30, desc: '스플래시 데미지 +20%, 스플래시 범위 주변 8칸', apply: () => { effects.splashRatio = +(effects.splashRatio + 0.2).toFixed(2); effects.splashMoore = true; } },
+      { cost: 10, desc: '스플래시 정화력 +10%', apply: () => { effects.splashRatio = +(effects.splashRatio + 0.1).toFixed(2); } },
+      { cost: 10, desc: '스플래시 정화력 +10%', apply: () => { effects.splashRatio = +(effects.splashRatio + 0.1).toFixed(2); } },
+      { cost: 10, desc: '스플래시 정화력 +10%', apply: () => { effects.splashRatio = +(effects.splashRatio + 0.1).toFixed(2); } },
+      { cost: 30, desc: '스플래시 정화력 +20%, 스플래시 범위 주변 8칸', apply: () => { effects.splashRatio = +(effects.splashRatio + 0.2).toFixed(2); effects.splashMoore = true; } },
     ],
   },
   sniper: {
@@ -164,7 +164,7 @@ const ITEM_UPGRADES = {
       { cost: 10, desc: '소형 에너지 발사 주기 -0.2초', apply: () => { effects.sniperInterval = Math.max(0.6, +(effects.sniperInterval - 0.2).toFixed(1)); } },
       { cost: 10, desc: '소형 에너지 발사 주기 -0.2초', apply: () => { effects.sniperInterval = Math.max(0.6, +(effects.sniperInterval - 0.2).toFixed(1)); } },
       { cost: 10, desc: '소형 에너지 발사 주기 -0.2초', apply: () => { effects.sniperInterval = Math.max(0.6, +(effects.sniperInterval - 0.2).toFixed(1)); } },
-      { cost: 30, desc: '소형 에너지 발사 주기 -0.4초, 소형 에너지 데미지 +100%', apply: () => { effects.sniperInterval = Math.max(0.6, +(effects.sniperInterval - 0.4).toFixed(1)); effects.sniperDamageMult *= 2; } },
+      { cost: 30, desc: '소형 에너지 발사 주기 -0.4초, 소형 에너지 정화력 +100%', apply: () => { effects.sniperInterval = Math.max(0.6, +(effects.sniperInterval - 0.4).toFixed(1)); effects.sniperDamageMult *= 2; } },
     ],
   },
   speed_gold: {
@@ -180,7 +180,7 @@ const ITEM_UPGRADES = {
       { cost: 10, desc: '에너지 시작 각도 -3도', apply: () => { effects.launchAngleReduction += 3; } },
       { cost: 10, desc: '에너지 시작 각도 -3도', apply: () => { effects.launchAngleReduction += 3; } },
       { cost: 10, desc: '에너지 시작 각도 -3도', apply: () => { effects.launchAngleReduction += 3; } },
-      { cost: 30, desc: '에너지 시작 각도 -6도, 관통 중 데미지 적용', apply: () => { effects.launchAngleReduction += 6; effects.firstWallPierceDamage = true; } },
+      { cost: 30, desc: '에너지 시작 각도 -6도, 관통 중 정화', apply: () => { effects.launchAngleReduction += 6; effects.firstWallPierceDamage = true; } },
     ],
   },
   small_paddle: {
@@ -196,7 +196,7 @@ const ITEM_UPGRADES = {
       { cost: 10, desc: '소형 에너지 발사 주기 -0.1초', apply: () => { effects.rapidFireInterval = Math.max(0.3, +(effects.rapidFireInterval - 0.1).toFixed(2)); } },
       { cost: 10, desc: '소형 에너지 발사 주기 -0.1초', apply: () => { effects.rapidFireInterval = Math.max(0.3, +(effects.rapidFireInterval - 0.1).toFixed(2)); } },
       { cost: 10, desc: '소형 에너지 발사 주기 -0.1초', apply: () => { effects.rapidFireInterval = Math.max(0.3, +(effects.rapidFireInterval - 0.1).toFixed(2)); } },
-      { cost: 30, desc: '소형 에너지 발사 주기 -0.2초, 소형 에너지 데미지 -80% → -50%', apply: () => { effects.rapidFireInterval = Math.max(0.3, +(effects.rapidFireInterval - 0.2).toFixed(2)); effects.rapidFireDamageMult = 0.5; } },
+      { cost: 30, desc: '소형 에너지 발사 주기 -0.2초, 소형 에너지 정화력 -80% → -50%', apply: () => { effects.rapidFireInterval = Math.max(0.3, +(effects.rapidFireInterval - 0.2).toFixed(2)); effects.rapidFireDamageMult = 0.5; } },
     ],
   },
   clone_ball: {
@@ -209,10 +209,10 @@ const ITEM_UPGRADES = {
   },
   pierce: {
     levels: [
-      { cost: 10, desc: '스트레스 정화시 주변 4칸 스플래시 데미지 +10%', apply: () => { effects.pierceOnDestroySplashRatio += 0.1; } },
-      { cost: 10, desc: '스트레스 정화시 주변 4칸 스플래시 데미지 +10%', apply: () => { effects.pierceOnDestroySplashRatio += 0.1; } },
-      { cost: 10, desc: '스트레스 정화시 주변 4칸 스플래시 데미지 +10%', apply: () => { effects.pierceOnDestroySplashRatio += 0.1; } },
-      { cost: 30, desc: '스트레스 정화시 주변 4칸 스플래시 데미지 +20%', apply: () => { effects.pierceOnDestroySplashRatio += 0.2; } },
+      { cost: 10, desc: '스트레스 정화시 주변 4칸 스플래시 정화력 +10%', apply: () => { effects.pierceOnDestroySplashRatio += 0.1; } },
+      { cost: 10, desc: '스트레스 정화시 주변 4칸 스플래시 정화력 +10%', apply: () => { effects.pierceOnDestroySplashRatio += 0.1; } },
+      { cost: 10, desc: '스트레스 정화시 주변 4칸 스플래시 정화력 +10%', apply: () => { effects.pierceOnDestroySplashRatio += 0.1; } },
+      { cost: 30, desc: '스트레스 정화시 주변 4칸 스플래시 정화력 +20%', apply: () => { effects.pierceOnDestroySplashRatio += 0.2; } },
     ],
   },
 };

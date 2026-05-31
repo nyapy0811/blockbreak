@@ -69,11 +69,11 @@
               <div class="setting-group" id="customColorGroup" style="display:none">
                 <label>색상 직접 설정</label>
                 <div class="color-picker-rows">
-                  <div class="color-picker-row"><span>에너지</span><input type="color" id="cp-ball"></div>
-                  <div class="color-picker-row"><span>스트레스</span><input type="color" id="cp-brick"></div>
-                  <div class="color-picker-row"><span>갑옷</span><input type="color" id="cp-armor"></div>
-                  <div class="color-picker-row"><span>파괴불가</span><input type="color" id="cp-indestructible"></div>
-                  <div class="color-picker-row"><span>강화</span><input type="color" id="cp-hardened"></div>
+                  <div class="color-picker-row"><span>행복 에너지</span><input type="color" id="cp-ball"></div>
+                  <div class="color-picker-row"><span>일반 스트레스</span><input type="color" id="cp-brick"></div>
+                  <div class="color-picker-row"><span>트라우마</span><input type="color" id="cp-armor"></div>
+                  <div class="color-picker-row"><span>나쁜 기억</span><input type="color" id="cp-indestructible"></div>
+                  <div class="color-picker-row"><span>정신적 압박</span><input type="color" id="cp-hardened"></div>
                   <div class="color-picker-row"><span>보스</span><input type="color" id="cp-boss"></div>
                   <div class="color-picker-row"><span>의지</span><input type="color" id="cp-paddle"></div>
                   <div class="color-picker-row"><span>배경</span><input type="color" id="cp-bg"></div>
@@ -110,13 +110,14 @@
         <div id="confirmOverlay" class="overlay hidden">
           <div class="clear-modal">
             <h2 id="clear-message">스테이지 클리어!</h2>
+            <p>행복도: <span id="end-score">0</span></p>
             <button id="confirmBtn">확인</button>
           </div>
         </div>
         <div id="winOverlay" class="overlay hidden">
           <div class="win-modal">
             <h2>Winner!</h2>
-            <p>행복도: <span id="win-score">0</span></p>
+            <p>행복도: <span id="end-score">0</span></p>
             <button id="restartBtn">재시작</button>
             <button id="winMainBtn">메인으로</button>
           </div>
@@ -124,6 +125,7 @@
         <div id="gameoverOverlay" class="overlay hidden">
           <div class="gameover-modal">
             <h2>Game Over</h2>
+            <p>행복도: <span id="end-score">0</span></p>
             <button id="gameoverRestartBtn">재시작</button>
             <button id="gameoverMainBtn">메인으로</button>
           </div>
@@ -155,22 +157,22 @@
           <div class="shop-modal">
             <h2>상점 (행복의 조각: <span id="shop-gold">0</span>)</h2>
             <div class="shop-item">
-              <span>에너지 데미지 +1</span>
-              <button id="buy-damage" class="buy-btn"><span id="price-damage">5</span> G</button>
+              <span>정화력 +1</span>
+              <button id="buy-damage" class="buy-btn"><span id="price-damage">5</span> HS</button>
             </div>
             <div class="shop-item">
               <span>의지 크기 +20</span>
-              <button id="buy-paddle" class="buy-btn"><span id="price-paddle">5</span> G</button>
+              <button id="buy-paddle" class="buy-btn"><span id="price-paddle">5</span> HS</button>
             </div>
             <div class="shop-item">
-              <span>황금 타일 +2</span>
-              <button id="buy-goldchance" class="buy-btn"><span id="price-goldchance">10</span> G</button>
+              <span>카타르시스 +2개</span>
+              <button id="buy-goldchance" class="buy-btn"><span id="price-goldchance">10</span> HS</button>
             </div>
             <div class="shop-item">
-              <span>보호막</span>
-              <button id="buy-shield" class="buy-btn"><span id="price-shield">20</span> G</button>
+              <span>버팀목</span>
+              <button id="buy-shield" class="buy-btn"><span id="price-shield">20</span> HS</button>
             </div>
-            <h3 id="itemUpgradeHeader" class="hidden">보유 아이템 업그레이드</h3>
+            <h3 id="itemUpgradeHeader" class="hidden">능력 업그레이드</h3>
             <div id="itemUpgradeSection"></div>
             <button id="nextStageBtn">다음 스테이지</button>
           </div>
@@ -184,15 +186,15 @@
       <h3>특수 스트레스</h3>
       <div class="legend-row">
         <span class="legend-color" id="legend-armor" style="background:#7fb3ff"></span>
-        <span>갑옷 — 한 번에 1 데미지만 받음 (HP 3 고정)</span>
+        <span>트라우마 — 한 번에 1 데미지만 받음 (HP 3 고정)</span>
       </div>
       <div class="legend-row">
         <span class="legend-color" id="legend-indestructible" style="background:#3a3a3a"></span>
-        <span>파괴 불가 — 파괴되지 않음, 클리어 조건 제외</span>
+        <span>나쁜 기억 — 파괴되지 않음, 클리어 조건 제외</span>
       </div>
       <div class="legend-row">
         <span class="legend-color" id="legend-hardened" style="background:#7c3aed"></span>
-        <span>강화 — HP 2배</span>
+        <span>정신적 압박 — HP 2배</span>
       </div>
       <div class="test-controls">
         <span class="test-label">테스트:</span>
@@ -201,12 +203,12 @@
     </div>
     <div class="shop-panel">
       <h3>스테이터스</h3>
-      <div class="stat-row"><span>데미지</span><span id="stat-damage">1</span></div>
-      <div class="stat-row"><span>공 크기</span><span id="stat-radius">8</span></div>
-      <div class="stat-row"><span>공 속도</span><span id="stat-speed">-</span></div>
-      <div class="stat-row"><span>골드 배수</span><span id="stat-goldmult">×1</span></div>
+      <div class="stat-row"><span>정화력</span><span id="stat-damage">1</span></div>
+      <div class="stat-row"><span>행복 에너지 크기</span><span id="stat-radius">8</span></div>
+      <div class="stat-row"><span>행복 에너지 속도</span><span id="stat-speed">-</span></div>
+      <div class="stat-row"><span>행복의 조각 배수</span><span id="stat-goldmult">×1</span></div>
       <div class="stat-row"><span>의지 크기</span><span id="stat-paddle">100</span></div>
-      <div class="stat-row"><span>황금 타일</span><span id="stat-goldchance">0</span></div>
+      <div class="stat-row"><span>카타르시스</span><span id="stat-goldchance">0</span></div>
       <hr>
       <div class="stat-row"><span>행복 조각</span><span id="stat-gold">0</span></div>
       <hr>

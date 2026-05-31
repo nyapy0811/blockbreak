@@ -29,7 +29,7 @@ const dom = {
   gameoverOverlay: document.getElementById('gameoverOverlay'),
 
   clearMessage:    document.getElementById('clear-message'),
-  winScore:        document.getElementById('win-score'),
+  endScore:        document.getElementById('end-score'),
   shopGold:        document.getElementById('shop-gold'),
   priceDamage:     document.getElementById('price-damage'),
   pricePaddle:     document.getElementById('price-paddle'),
@@ -771,12 +771,8 @@ function updateBoss(dt) {
         mainBall.dy = -Math.abs(mainBall.dy);
         mainBall.bossHitPending = false;
         hasShield = false;
-        dom.message.textContent = '보호막 발동!';
         playSfx('shield');
         updateStatsDisplay();
-        setTimeout(() => {
-          if (dom.message.textContent === '보호막 발동!') dom.message.textContent = '';
-        }, 1500);
       }
     }
 
@@ -900,7 +896,7 @@ function updateBoss(dt) {
   }
 
   function updateScoreDisplay() {
-    dom.score.textContent = `점수: ${score}`;
+    dom.score.textContent = `행복도: ${score}`;
   }
 
   function updateStageDisplay() {
@@ -1000,9 +996,9 @@ function updateBoss(dt) {
   function gameOver(won) {
     running = false;
     cancelAnimationFrame(animationId);
+    dom.endScore.textContent = score;
     if (won) {
       if (currentStage === MAX_STAGE) {
-        dom.winScore.textContent = score;
         gameState = 'won';
         show(dom.winOverlay);
         playSfx('finalWin');
@@ -1186,7 +1182,7 @@ function updateBoss(dt) {
         btn.className = 'buy-btn';
         btn.dataset.upgradeId = id;
         btn.disabled = gold < cost;
-        btn.textContent = `${cost} G`;
+        btn.textContent = `${cost} HS`;
         div.appendChild(btn);
       }
       section.appendChild(div);

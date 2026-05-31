@@ -94,6 +94,11 @@ body {
   color: #2e7d32;
 }
 
+.clear-modal p {
+  margin: 0 0 20px;
+  font-size: 18px;
+}
+
 #confirmBtn {
   padding: 12px 36px;
   font-size: 18px;
@@ -242,6 +247,10 @@ body {
   margin: 0 0 20px;
   font-size: 36px;
   color: #c00;
+}
+.gameover-modal p {
+  margin: 0 0 20px;
+  font-size: 18px;
 }
 
 #restartBtn,
