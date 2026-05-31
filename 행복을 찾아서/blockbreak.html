@@ -14,6 +14,7 @@
           <span id="stage">스테이지: 1</span>
           <span id="timer" class="hidden"></span>
           <span id="score">행복도: 0</span>
+          <span id="lives-display">♥♥</span>
         </div>
         <div id="storyOverlay" class="overlay">
           <div class="story-modal">
@@ -212,6 +213,14 @@
             <button id="winMainBtn">메인으로</button>
           </div>
         </div>
+        <div id="lifeLostOverlay" class="overlay hidden">
+          <div class="life-lost-modal">
+            <h2>생명을 잃었습니다</h2>
+            <div id="life-lost-hearts"></div>
+            <button id="continueBtn">시작</button>
+            <button id="lifeLostMainBtn">메인으로</button>
+          </div>
+        </div>
         <div id="gameoverOverlay" class="overlay hidden">
           <div class="gameover-modal">
             <h2>Game Over</h2>
@@ -256,8 +265,8 @@
               <button id="buy-goldchance" class="buy-btn"><span id="price-goldchance">10</span> HS</button>
             </div>
             <div class="shop-item">
-              <span>버팀목</span>
-              <button id="buy-shield" class="buy-btn"><span id="price-shield">20</span> HS</button>
+              <span>생명 +1 (최대 3)</span>
+              <button id="buy-life" class="buy-btn"><span id="price-life">30</span> HS</button>
             </div>
             <h3 id="itemUpgradeHeader" class="hidden">능력 업그레이드</h3>
             <div id="itemUpgradeSection"></div>

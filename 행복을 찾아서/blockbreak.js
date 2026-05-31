@@ -53,16 +53,23 @@ const dom = {
   priceDamage:     document.getElementById('price-damage'),
   pricePaddle:     document.getElementById('price-paddle'),
   priceGoldChance: document.getElementById('price-goldchance'),
-  priceShield:     document.getElementById('price-shield'),
 
   confirmBtn:         document.getElementById('confirmBtn'),
   nextStageBtn:       document.getElementById('nextStageBtn'),
   buyDamage:          document.getElementById('buy-damage'),
   buyPaddle:          document.getElementById('buy-paddle'),
   buyGoldChance:      document.getElementById('buy-goldchance'),
-  buyShield:          document.getElementById('buy-shield'),
+  buyLife:            document.getElementById('buy-life'),
+  priceLife:          document.getElementById('price-life'),
+  livesDisplay:       document.getElementById('lives-display'),
+  lifeLostOverlay:    document.getElementById('lifeLostOverlay'),
+  lifeLostHearts:     document.getElementById('life-lost-hearts'),
+  continueBtn:        document.getElementById('continueBtn'),
+  lifeLostMainBtn:    document.getElementById('lifeLostMainBtn'),
   restartBtn:         document.getElementById('restartBtn'),
   gameoverRestartBtn: document.getElementById('gameoverRestartBtn'),
+  priceShield:        null,
+  buyShield:          null,
   winMainBtn:         document.getElementById('winMainBtn'),
   gameoverMainBtn:    document.getElementById('gameoverMainBtn'),
   newGameBtn:         document.getElementById('newGameBtn'),
@@ -150,10 +157,11 @@ let balls = [];
 let bricks = [];
 let score = 0;
 let gold = 0;
-let hasShield = false;
+let lives = 2;
+const MAX_LIVES = 3;
 let running = false;
 let animationId = null;
-// 'main'|'settings'|'preGame'|'ready'|'playing'|'cleared'|'shop'|'won'|'gameover'
+// 'main'|'settings'|'preGame'|'ready'|'playing'|'cleared'|'shop'|'won'|'gameover'|'paused'|'lifelost'
 let gameState = 'ready';
 let currentStage = 1;
 let stageStartTime = null;
@@ -745,21 +753,8 @@ function update(dt) {
   for (const ball of balls) updateBall(ball, dt);
   if (currentStage === MAX_STAGE) updateBoss(dt);
 
-  if (hasShield) {
-    const mainBalls = balls.filter(isMainBall);
-    if (mainBalls.length === 1 && mainBalls[0].y - mainBalls[0].r > H) {
-      const b = mainBalls[0];
-      b.y = H - b.r;
-      b.dy = -Math.abs(b.dy);
-      b.bossHitPending = false;
-      hasShield = false;
-      playSfx('shield');
-      updateStatsDisplay();
-    }
-  }
-
   balls = balls.filter(b => !b.dead && b.y - b.r <= H);
-  if (balls.length === 0) { gameOver(false); return; }
+  if (balls.length === 0) { loseLife(); return; }
 
   if (stageStartTime !== null) {
     const elapsed     = (performance.now() - stageStartTime) / 1000;
@@ -783,7 +778,6 @@ function draw() {
   drawBricks();
   drawBalls();
   drawPaddle();
-  drawShield();
 }
 
 function drawBalls() {
@@ -815,11 +809,6 @@ function drawPaddle() {
   ctx.fillRect(paddle.x, paddle.y, paddle.w, paddle.h);
 }
 
-function drawShield() {
-  if (!hasShield) return;
-  ctx.fillStyle = '#4caf50';
-  ctx.fillRect(0, H - 4, W, 4);
-}
 
 function brickBaseColor(b) {
   switch (b.type) {
@@ -889,6 +878,7 @@ function updateStatsDisplay() {
   dom.statPaddle.textContent   = paddle.w;
   dom.statGoldChance.textContent = stats.goldTileCount;
   dom.statGold.textContent     = gold;
+  dom.livesDisplay.textContent = '♥'.repeat(lives);
 }
 
 // ─── GAME FLOW ────────────────────────────────────────────────────────────────
@@ -921,7 +911,7 @@ function resetGame() {
 }
 
 function fullReset() {
-  currentStage = 1; score = 0; gold = 0; hasShield = false;
+  currentStage = 1; score = 0; gold = 0; lives = 2;
   stats.ballDamage = 1; stats.ballRadius = 8; stats.ballSpeed = 3; stats.goldTileCount = 0;
   paddle.w = 100;
   shopState.damageBuys = 0; shopState.paddleBuys = 0; shopState.goldchanceBuys = 0;
@@ -990,6 +980,39 @@ function gameOver(won) {
   updateStatsDisplay();
 }
 
+function loseLife() {
+  running = false;
+  cancelAnimationFrame(animationId);
+  lives--;
+  updateStatsDisplay();
+  if (lives < 0) {
+    gameOver(false);
+    return;
+  }
+  // 벽돌 상태 유지, 공/패드만 리셋
+  paddle.x = (W - paddle.w) / 2;
+  paddle.history = []; paddle.dx = 0;
+  paddle.lastFrameX = paddle.x; paddle.lastFrameTime = 0;
+  stats.ballSpeed = stageBallSpeed() * effects.ballSpeedMult;
+  const baseAngle = Math.max(0, 15 - effects.launchAngleReduction) * effects.launchAngleMult;
+  const angleDeg  = (baseAngle + Math.random() * 15) * (Math.random() < 0.5 ? 1 : -1);
+  const angle     = angleDeg * Math.PI / 180;
+  balls = [createBall(
+    paddle.x + paddle.w / 2, paddle.y - stats.ballRadius,
+    Math.sin(angle) * stats.ballSpeed, -Math.cos(angle) * stats.ballSpeed
+  )];
+  effectsState.lastSniperSpawnTime    = 0;
+  effectsState.lastRapidFireSpawnTime = 0;
+  effectsState.lastCloneBallSpawnTime = 0;
+  stageStartTime = null;
+  lastTickSecond = 0;
+  dom.message.textContent = '';
+  gameState = 'lifelost';
+  dom.lifeLostHearts.textContent = '♥'.repeat(Math.max(0, lives));
+  show(dom.lifeLostOverlay);
+  draw();
+}
+
 function returnToStart() {
   hide(dom.winOverlay); hide(dom.gameoverOverlay);
   fullReset(); resetGame();
@@ -998,17 +1021,24 @@ function returnToStart() {
   draw();
 }
 
+let pauseStartTime = 0;
+
 function pauseGame() {
   if (gameState !== 'playing') return;
   running = false;
   cancelAnimationFrame(animationId);
   gameState = 'paused';
+  pauseStartTime = performance.now();
   show(dom.pauseOverlay);
 }
 
 function resumeGame() {
   if (gameState !== 'paused') return;
   hide(dom.pauseOverlay);
+  // 일시정지한 시간만큼 stageStartTime을 앞으로 당겨 점수 감산 방지
+  if (stageStartTime !== null) {
+    stageStartTime += performance.now() - pauseStartTime;
+  }
   gameState = 'playing';
   running = true;
   lastLoopTs = 0;
@@ -1018,7 +1048,8 @@ function resumeGame() {
 function returnToMain() {
   [dom.winOverlay, dom.gameoverOverlay, dom.confirmOverlay,
    dom.rewardOverlay, dom.shopOverlay, dom.preGameOverlay, dom.settingsOverlay,
-   dom.pauseOverlay, dom.docsOverlay, dom.stressDocsOverlay, dom.abilityDocsOverlay].forEach(hide);
+   dom.pauseOverlay, dom.docsOverlay, dom.stressDocsOverlay, dom.abilityDocsOverlay,
+   dom.lifeLostOverlay].forEach(hide);
   fullReset(); resetGame();
   gameState = 'main';
   show(dom.mainOverlay);
@@ -1027,7 +1058,7 @@ function returnToMain() {
 
 // ─── SHOP ─────────────────────────────────────────────────────────────────────
 function priceFor(kind) {
-  if (kind === 'shield') return 20;
+  if (kind === 'life') return 30;
   if (kind === 'goldchance') return 5 + 5 * shopState.goldchanceBuys;
   return 5 + 5 * shopState[kind + 'Buys'];
 }
@@ -1037,21 +1068,21 @@ function updateShopUI() {
   dom.priceDamage.textContent   = priceFor('damage');
   dom.pricePaddle.textContent   = priceFor('paddle');
   dom.priceGoldChance.textContent = priceFor('goldchance');
-  dom.priceShield.textContent   = hasShield ? '보유중' : priceFor('shield');
+  dom.priceLife.textContent     = priceFor('life');
   dom.buyDamage.disabled        = gold < priceFor('damage');
   dom.buyPaddle.disabled        = gold < priceFor('paddle');
   dom.buyGoldChance.disabled    = gold < priceFor('goldchance');
-  dom.buyShield.disabled        = hasShield || gold < priceFor('shield');
+  dom.buyLife.disabled          = lives >= MAX_LIVES || gold < priceFor('life');
   updateItemUpgradesUI();
 }
 
 function buy(kind) {
-  if (kind === 'shield' && hasShield) return;
+  if (kind === 'life' && lives >= MAX_LIVES) return;
   const price = priceFor(kind);
   if (gold < price) return;
   gold -= price;
-  if (kind === 'shield') {
-    hasShield = true;
+  if (kind === 'life') {
+    lives++;
   } else if (kind === 'goldchance') {
     shopState.goldchanceBuys++;
     stats.goldTileCount += GOLD.TILE_PER_BUY;
@@ -1240,7 +1271,6 @@ const SFX_AUDIO_MAP = {
   gameover:     dom.sfxGameover,
   click:        dom.sfxClick,
   goldBrick:    dom.sfxCoin,
-  shield:       dom.sfxBarrier,
 };
 
 function playSfx(type) {
@@ -1365,7 +1395,19 @@ dom.nextStageBtn.addEventListener('click', () => { if (gameState === 'shop') { p
 dom.buyDamage.addEventListener('click',    () => { playSfx('click'); buy('damage'); });
 dom.buyPaddle.addEventListener('click',    () => { playSfx('click'); buy('paddle'); });
 dom.buyGoldChance.addEventListener('click',() => { playSfx('click'); buy('goldchance'); });
-dom.buyShield.addEventListener('click',    () => { playSfx('click'); buy('shield'); });
+dom.buyLife.addEventListener('click',      () => { playSfx('click'); buy('life'); });
+
+dom.continueBtn.addEventListener('click', () => {
+  playSfx('click');
+  hide(dom.lifeLostOverlay);
+  gameState = 'preGame';
+  show(dom.preGameOverlay);
+});
+
+dom.lifeLostMainBtn.addEventListener('click', () => {
+  playSfx('click');
+  returnToMain();
+});
 
 dom.rewardCards.forEach((card, i) => card.addEventListener('click', () => { playSfx('click'); pickReward(i); }));
 
