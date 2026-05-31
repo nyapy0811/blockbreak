@@ -141,7 +141,7 @@ const STAGE_LAYOUTS = { 1: [3, 5], 2: [4, 6], 3: [5, 7], 4: [6, 8] };
 const COLOR_PRESETS = {
   default: { ball: '#ffe042', brick: '#545454', armor: '#606e80', indestructible: '#805252', hardened: '#63537f', boss: '#000000', paddle: '#ffe042' },
   pastel:  { ball: '#b7fea9', brick: '#125200', armor: '#15529e', indestructible: '#4f4f4f', hardened: '#513b5e', boss: '#00393d', paddle: '#966c4f' },
-  neon:    { ball: '#e1ff00', brick: '#0400ff', armor: '#1ac6ff', indestructible: '#5c5c5c', hardened: '#bf29ff', boss: '#004c94', paddle: '#e1ff00' },
+  neon:    { ball: '#f8ed77', brick: '#7338ad', armor: '#4341d2', indestructible: '#b92299', hardened: '#583c5d', boss: '#310c5f', paddle: '#f8ed77' },
   custom:  { ball: '#ffe042', brick: '#545454', armor: '#606e80', indestructible: '#805252', hardened: '#63537f', boss: '#000000', paddle: '#ffe042' },
 };
 
@@ -153,13 +153,20 @@ const BACKGROUND_PRESETS = {
 };
 
 // 테마별 스테이지 배경 이미지 (없으면 BACKGROUND_PRESETS 색상으로 폴백)
+const THEME_UI_COLORS = {
+  default: { modalBg: '#707070', btnBg: '#4a4a4a', btnBorder: '#333333', btnActiveBg: '#666666' },
+  space:   { modalBg: '#8c849c', btnBg: '#3d3550', btnBorder: '#2a2340', btnActiveBg: '#5a5070' },
+  forest:  { modalBg: '#2d5a27', btnBg: '#1a3d16', btnBorder: '#0f2a0c', btnActiveBg: '#2a5224' },
+  custom:  { modalBg: '#707070', btnBg: '#4a4a4a', btnBorder: '#333333', btnActiveBg: '#666666' },
+};
+
 const BACKGROUND_IMAGES = {
-  default: [
-    'background/default_stage1.png',
-    'background/default_stage2.png',
-    'background/default_stage3.png',
-    'background/default_stage4.png',
-    'background/default_stage5.png',
+  space: [
+    'background/space_stage1.png',
+    'background/space_stage2.png',
+    'background/space_stage3.png',
+    'background/space_stage4.png',
+    'background/space_stage5.png',
   ],
 };
 
@@ -1315,6 +1322,15 @@ function updateLegendColors() {
   dom.docsBoss.style.background             = settings.bossColor;
 }
 
+function applyThemeUI() {
+  const c = THEME_UI_COLORS[settings.backgroundTheme] ?? THEME_UI_COLORS.default;
+  const root = document.documentElement.style;
+  root.setProperty('--modal-bg',      c.modalBg);
+  root.setProperty('--btn-bg',        c.btnBg);
+  root.setProperty('--btn-border',    c.btnBorder);
+  root.setProperty('--btn-active-bg', c.btnActiveBg);
+}
+
 function applyBackground() {
   const images = BACKGROUND_IMAGES[settings.backgroundTheme];
   const img    = images ? images[currentStage - 1] : null;
@@ -1355,6 +1371,7 @@ document.querySelectorAll('.theme-btn').forEach(btn => {
     settings.backgroundTheme = bg;
     updateLegendColors();
     applyBackground();
+    applyThemeUI();
     dom.customColorGroup.style.display = btn.dataset.preset === 'custom' ? '' : 'none';
     if (btn.dataset.preset === 'custom') syncColorPickers();
   });
@@ -1591,5 +1608,7 @@ ctx.scale(dpr, dpr);
 
 resetGame();
 applyBackground();
+applyThemeUI();
 draw();
 gameState = 'main';
+updateCanvasBlur();
