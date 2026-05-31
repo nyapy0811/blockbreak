@@ -254,8 +254,13 @@ const shopState = {
 };
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
-const show = el => el.classList.remove('hidden');
-const hide = el => el.classList.add('hidden');
+function updateCanvasBlur() {
+  const anyOverlay = document.querySelector('.overlay:not(.hidden)');
+  dom.canvas.classList.toggle('blurred', !!anyOverlay);
+}
+
+const show = el => { el.classList.remove('hidden'); if (el.classList.contains('overlay')) updateCanvasBlur(); };
+const hide = el => { el.classList.add('hidden');    if (el.classList.contains('overlay')) updateCanvasBlur(); };
 
 function complementaryColor(hex) {
   const r = 255 - parseInt(hex.slice(1, 3), 16);

@@ -3,7 +3,7 @@ body {
   margin: 0;
   padding: 20px;
   background: #000;
-  font-family: sans-serif;
+  font-family: 'Diphylleia', sans-serif;
   display: flex;
   justify-content: center;
   overflow: hidden;
@@ -28,6 +28,10 @@ body {
   height: 100%;
   background: #ffffff;
   border: 1px solid #333;
+}
+
+#gameCanvas.blurred {
+  filter: blur(6px);
 }
 
 /* ─── OVERLAY ─────────────────────────────────────────────────────────────── */
@@ -307,10 +311,21 @@ body {
 }
 
 /* ─── LIVES HUD ──────────────────────────────────────────────────────────── */
+.canvas-hud-left {
+  position: absolute;
+  top: 10px;
+  left: 12px;
+  pointer-events: none;
+  z-index: 1;
+}
+
 #lives-display {
+  background: rgba(0, 0, 0, 0.55);
   color: #ff4d4d;
   font-size: 18px;
   letter-spacing: 2px;
+  padding: 3px 10px;
+  font-weight: bold;
 }
 
 /* ─── LIFE LOST MODAL ────────────────────────────────────────────────────── */
