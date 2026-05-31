@@ -161,12 +161,26 @@ const THEME_UI_COLORS = {
 };
 
 const BACKGROUND_IMAGES = {
+  default: [
+    'background/stage1_default.png',
+    'background/stage2_default.png',
+    'background/stage3_default.png',
+    'background/stage4_default.png',
+    'background/stage5_default.png',
+  ],
+  forest: [
+    'background/stage1_forest.png',
+    'background/stage2_forest.png',
+    'background/stage3_forest.png',
+    'background/stage4_forest.png',
+    'background/stage5_forest.png',
+  ],
   space: [
-    'background/space_stage1.png',
-    'background/space_stage2.png',
-    'background/space_stage3.png',
-    'background/space_stage4.png',
-    'background/space_stage5.png',
+    'background/stage1_space.png',
+    'background/stage2_space.png',
+    'background/stage3_space.png',
+    'background/stage4_space.png',
+    'background/stage5_space.png',
   ],
 };
 
