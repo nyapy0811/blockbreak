@@ -190,6 +190,9 @@ let bricks = [];
 let score = 0;
 let gold = 0;
 let lives = 2;
+let clearableBrickCount = 0;
+let statsDirty = false;
+let scoreDirty = false;
 const MAX_LIVES = 3;
 let running = false;
 let animationId = null;
@@ -340,24 +343,28 @@ function spawnBouncyBall(x, y) {
 }
 
 function spawnAimBall(damageMult, speedMult, vanishOnHit) {
-  const mainBall = balls.find(isMainBall);
-  if (!mainBall) return;
-  const target = findNearestBrick(mainBall);
-  if (!target) return;
-  const ddx = (target.x + target.w / 2) - mainBall.x;
-  const ddy = (target.y + target.h / 2) - mainBall.y;
-  const dist = Math.hypot(ddx, ddy);
-  if (dist <= 0) return;
-  const speed = stats.ballSpeed * speedMult;
-  balls.push({
-    x: mainBall.x, y: mainBall.y,
-    r: stats.ballRadius * 0.6,
-    dx: ddx / dist * speed,
-    dy: ddy / dist * speed,
-    color: settings.ballColor,
-    vanishOnHit,
-    damageMult,
-  });
+  const mainBalls = balls.filter(isMainBall);
+  if (!mainBalls.length) return;
+  const newBalls = [];
+  for (const mainBall of mainBalls) {
+    const target = findNearestBrick(mainBall);
+    if (!target) continue;
+    const ddx = (target.x + target.w / 2) - mainBall.x;
+    const ddy = (target.y + target.h / 2) - mainBall.y;
+    const dist = Math.hypot(ddx, ddy);
+    if (dist <= 0) continue;
+    const speed = stats.ballSpeed * speedMult;
+    newBalls.push({
+      x: mainBall.x, y: mainBall.y,
+      r: stats.ballRadius * 0.6,
+      dx: ddx / dist * speed,
+      dy: ddy / dist * speed,
+      color: settings.ballColor,
+      vanishOnHit,
+      damageMult,
+    });
+  }
+  balls.push(...newBalls);
 }
 
 function findNearestBrick(ball) {
@@ -411,6 +418,7 @@ function applyBrickType(b, type, baseHp) {
 
 function initBricks() {
   bricks = [];
+  clearableBrickCount = 0;
   if (currentStage === MAX_STAGE) { initBossStage(); return; }
 
   const [rows, cols] = STAGE_LAYOUTS[currentStage] || STAGE_LAYOUTS[4];
@@ -441,6 +449,12 @@ function initBricks() {
     const count = Math.min(stats.goldTileCount, eligible.length);
     for (let i = 0; i < count; i++) eligible[i].trait = 'gold';
   }
+
+  // 색상 캐싱 + 클리어 카운터
+  for (const b of bricks) {
+    cacheBrickColors(b);
+    if (b.type !== BRICK_TYPE.INDESTRUCTIBLE) clearableBrickCount++;
+  }
 }
 
 function initBossStage() {
@@ -470,6 +484,10 @@ function initBossStage() {
     bossOffsetX: 0,
     bossOffsetY: BOSS.H,
   });
+  for (const b of bricks) {
+    cacheBrickColors(b);
+    if (b.type !== BRICK_TYPE.INDESTRUCTIBLE) clearableBrickCount++;
+  }
 }
 
 function placeSpecialBricks(baseHp, rows, cols) {
@@ -519,13 +537,15 @@ function dealDamageToBlock(b, dmg) {
   dmg = Math.min(dmg, b.hp);
   if (dmg <= 0) return false;
   b.hp -= dmg;
+  cacheBrickColors(b);
   if (b.hp <= 0) {
     b.alive = false;
+    clearableBrickCount--;
     if (b.type !== BRICK_TYPE.BOSS) {
       gold += Math.ceil((b.trait === 'gold' ? GOLD.TRAIT_REWARD : 2) * effects.goldMult);
-      updateStatsDisplay();
+      statsDirty = true;
     }
-    updateScoreDisplay();
+    scoreDirty = true;
     return true;
   }
   return false;
@@ -632,7 +652,7 @@ function collideBricks(ball, prevX, prevY) {
 }
 
 function allBricksCleared() {
-  return bricks.every(b => !b.alive || b.type === BRICK_TYPE.INDESTRUCTIBLE);
+  return clearableBrickCount <= 0;
 }
 
 // ─── PHYSICS ──────────────────────────────────────────────────────────────────
@@ -806,6 +826,9 @@ function update(dt) {
     if (currentStage === MAX_STAGE && elapsed >= BOSS.TIME_LIMIT_SEC) { gameOver(false); return; }
   }
 
+  if (scoreDirty) { updateScoreDisplay(); scoreDirty = false; }
+  if (statsDirty) { updateStatsDisplay(); statsDirty = false; }
+
   if (allBricksCleared()) gameOver(true);
 }
 
@@ -857,17 +880,21 @@ function brickBaseColor(b) {
   }
 }
 
+function cacheBrickColors(b) {
+  const hpRatio    = isFinite(b.hp) && b.maxHp > 0 ? b.hp / b.maxHp : 1;
+  b._displayColor  = blendToWhite(brickBaseColor(b), hpRatio);
+  b._borderColor   = complementaryColor(b._displayColor);
+}
+
 function drawBricks() {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.globalAlpha = 0.5;
   for (const b of bricks) {
     if (!b.alive) continue;
-    const hpRatio      = isFinite(b.hp) && b.maxHp > 0 ? b.hp / b.maxHp : 1;
-    const displayColor = blendToWhite(brickBaseColor(b), hpRatio);
-    ctx.fillStyle = displayColor;
+    ctx.fillStyle = b._displayColor;
     ctx.fillRect(b.x, b.y, b.w, b.h);
-    ctx.strokeStyle = complementaryColor(displayColor);
+    ctx.strokeStyle = b._borderColor;
     ctx.lineWidth = 1;
     ctx.strokeRect(b.x + 0.5, b.y + 0.5, b.w - 1, b.h - 1);
     if (b.trait === 'gold') {
@@ -1078,9 +1105,14 @@ function pauseGame() {
 function resumeGame() {
   if (gameState !== 'paused') return;
   hide(dom.pauseOverlay);
-  // 일시정지한 시간만큼 stageStartTime을 앞으로 당겨 점수 감산 방지
-  if (stageStartTime !== null) {
-    stageStartTime += performance.now() - pauseStartTime;
+  const pausedDuration = performance.now() - pauseStartTime;
+  // 모든 타이머를 일시정지한 시간만큼 앞으로 당김
+  if (stageStartTime !== null) stageStartTime += pausedDuration;
+  if (effectsState.lastSniperSpawnTime > 0)    effectsState.lastSniperSpawnTime    += pausedDuration;
+  if (effectsState.lastRapidFireSpawnTime > 0) effectsState.lastRapidFireSpawnTime += pausedDuration;
+  if (effectsState.lastCloneBallSpawnTime > 0) effectsState.lastCloneBallSpawnTime += pausedDuration;
+  for (const b of bricks) {
+    if (b.lastTurnTime) b.lastTurnTime += pausedDuration;
   }
   gameState = 'playing';
   running = true;
@@ -1386,6 +1418,7 @@ document.querySelectorAll('.theme-btn').forEach(btn => {
     updateLegendColors();
     applyBackground();
     applyThemeUI();
+    for (const b of bricks) cacheBrickColors(b);
     draw();
     dom.customColorGroup.style.display = btn.dataset.preset === 'custom' ? '' : 'none';
     if (btn.dataset.preset === 'custom') syncColorPickers();
