@@ -81,7 +81,7 @@ const ITEM_POOL = [
   },
   {
     id: "small_paddle",
-    name: "중요한건 꺽이지 않는 마음",
+    name: "중요한건 꺾이지 않는 마음",
     desc: "의지 크기 -50%, 행복 조각 획득 +150%",
     apply: () => {
       paddle.w *= 0.5;

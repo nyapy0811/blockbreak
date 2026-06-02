@@ -117,7 +117,7 @@ body {
 
 #lives-display {
   background: rgba(0, 0, 0, 0.55);
-  color: #ff4d4d;
+  color: #f00;
   font-size: 18px;
   letter-spacing: 2px;
   padding: 3px 10px;
@@ -139,6 +139,7 @@ body {
 .settings-modal {
   background: var(--modal-bg);
   border-radius: 10px;
+  color: #fff;
 }
 
 /* ─── CLEAR MODAL ─────────────────────────────────────────────────────────── */
@@ -148,7 +149,7 @@ body {
   min-width: 280px;
 }
 
-.clear-modal h2 { margin: 0 0 20px; font-size: 32px; color: #2e7d32; }
+.clear-modal h2 { margin: 0 0 20px; font-size: 32px; color: #f1a200; }
 .clear-modal p  { margin: 0 0 20px; font-size: 18px; }
 
 #confirmBtn { width: 100%; }
@@ -265,12 +266,12 @@ body {
   gap: 12px;
 }
 
-.life-lost-modal h2 { margin: 0; font-size: 28px; color: #c00; }
+.life-lost-modal h2 { margin: 0; font-size: 28px; color: #f00; }
 
 #life-lost-hearts {
   font-size: 28px;
   letter-spacing: 4px;
-  color: #ff4d4d;
+  color: #f00;
   min-height: 36px;
 }
 
@@ -284,7 +285,7 @@ body {
   min-width: 280px;
 }
 
-.gameover-modal h2 { margin: 0 0 20px; font-size: 36px; color: #c00; }
+.gameover-modal h2 { margin: 0 0 20px; font-size: 36px; color: #f00; }
 .gameover-modal p  { margin: 0 0 20px; font-size: 18px; }
 
 #gameoverMainBtn { margin-left: 8px; }
@@ -305,6 +306,7 @@ body {
   line-height: 1.8;
   max-height: 360px;
   overflow-y: auto;
+  color: #fff;
 }
 
 .rules-text p { margin: 0 0 12px; }
@@ -327,6 +329,7 @@ body {
   line-height: 1.8;
   max-height: 320px;
   overflow-y: auto;
+  color: #fff;
 }
 
 .story-text p { margin: 0 0 12px; }
@@ -467,7 +470,7 @@ body {
 /* ─── CONTROLS & MESSAGE ──────────────────────────────────────────────────── */
 .controls { margin-top: 8px; display: flex; align-items: center; gap: 12px; }
 
-#message { font-size: 16px; font-weight: bold; color: #c00; }
+#message { font-size: 16px; font-weight: bold; color: #f00; }
 
 .test-controls {
   margin-top: 16px;
@@ -499,7 +502,7 @@ body {
 .stat-row { display: flex; justify-content: space-between; padding: 3px 0; font-size: 13px; }
 
 .picked-item-row { padding: 4px 0; display: flex; flex-direction: column; gap: 1px; }
-.picked-item-name { font-size: 12px; font-weight: bold; color: #adf5ad; }
+.picked-item-name { font-size: 12px; font-weight: bold; color: #fff; }
 .picked-item-desc { font-size: 11px; opacity: 0.8; }
 
 .lv-badge {
