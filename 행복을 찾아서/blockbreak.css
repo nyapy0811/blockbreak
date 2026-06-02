@@ -375,6 +375,7 @@ body {
   gap: 14px;
   max-height: 60vh;
   overflow-y: auto;
+  padding: 4px;
 }
 
 .docs-entry { display: flex; align-items: center; gap: 16px; }
@@ -387,7 +388,7 @@ body {
   flex-shrink: 0;
 }
 
-.docs-brick-gold  { outline: 3px solid #ffd700; outline-offset: 2px; }
+.docs-brick-gold  { box-shadow: 0 0 0 3px #ffd700; }
 .docs-brick-boss  { width: 90px; height: 30px; }
 
 .docs-info  { display: flex; flex-direction: column; gap: 3px; }
@@ -410,10 +411,10 @@ body {
 .settings-modal {
   padding: 36px 48px;
   text-align: center;
-  min-width: 340px;
+  min-width: 350px;
 }
 
-#main-settings { max-height: 65vh; overflow-y: auto; margin-bottom: 24px; }
+#main-settings { max-height: 65vh; overflow-y: auto; overflow-x: hidden; margin-bottom: 24px; }
 
 .settings-modal h2 { margin: 0 0 24px; font-size: 28px; }
 

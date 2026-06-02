@@ -1054,7 +1054,7 @@ function loseLife() {
   cancelAnimationFrame(animationId);
   lives--;
   updateStatsDisplay();
-  if (lives < 0) {
+  if (lives <= 0) {
     gameOver(false);
     return;
   }
